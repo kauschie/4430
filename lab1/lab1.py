@@ -1,3 +1,6 @@
+# By Michael Kausch
+
+
 import csv
 import os
 import math
