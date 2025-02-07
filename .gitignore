@@ -1,2 +1,5 @@
 a.out
-
+*.png
+*.csv
+*.txt
+*test*
