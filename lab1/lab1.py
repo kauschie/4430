@@ -1,9 +1,12 @@
 # By Michael Kausch
 
-
 import csv
 import os
 import math
+import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt 
 
 class DataPoint:
     def __init__(self, a, b, c=None):
@@ -128,6 +131,68 @@ def print_data(data):
         for d in v:
             print(d)
 
+def plot_training_data(training_data, center_m, center_f):
+    m_data = training_data['m']
+    f_data = training_data['f']
+
+    m_x = [dp.a for dp in m_data]
+    m_y = [dp.b for dp in m_data]
+    f_x = [dp.a for dp in f_data]
+    f_y = [dp.b for dp in f_data]
+
+    plt.scatter(m_x, m_y, c='lightblue', label="Males")
+    plt.scatter(f_x, f_y, c='pink', label="Females")
+    plt.scatter([center_m.a], [center_m.b], color='lightblue', edgecolors='blue', label="Male Center")
+    plt.scatter([center_f.a], [center_f.b], color='pink', edgecolors='hotpink', label="Female Center")
+    plt.xlabel("Height")
+    plt.ylabel("Weight")
+
+    plt.title("Lab1 Training Data")
+    plt.legend()
+    plt.show()
+
+def plot_testing_data(testing_data, center_m, center_f):
+    data = testing_data['u']
+
+    x = [dp.a for dp in data]
+    y = [dp.b for dp in data]
+
+    plt.scatter(x, y, c='green', label="unk")
+    plt.scatter([center_m.a], [center_m.b], color='lightblue', edgecolors='blue', label="Male Center")
+    plt.scatter([center_f.a], [center_f.b], color='pink', edgecolors='hotpink', label="Female Center")
+    plt.xlabel("Height")
+    plt.ylabel("Weight")
+
+    plt.title("Lab1 Testing Data")
+    plt.legend()
+    plt.show()
+
+    test_color = []
+    for dp in data:
+        classification, _, _ = get_class(dp, center_m, center_f)
+        if classification == 'M':
+            test_color.append('lightblue')
+        elif classification == 'F':
+            test_color.append('pink')
+        else:
+            test_color.append('green')
+    
+    x = [dp.a for dp in data]
+    y = [dp.b for dp in data]
+    # plt.xlim(0, 100)
+    # plt.ylim(0, 250)
+    
+    plt.scatter(x, y, c=test_color, label="unk")
+    plt.scatter([center_m.a], [center_m.b], color='lightblue', edgecolors='blue', label="Male Center")
+    plt.scatter([center_f.a], [center_f.b], color='pink', edgecolors='hotpink', label="Female Center")
+    plt.xlabel("Height")
+    plt.ylabel("Weight")
+
+    plt.title("Lab1 Fixed Data")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
     # Read in training Data
     training_data = read_csv('KNN_armyTraining1.csv')
@@ -154,3 +219,6 @@ if __name__ == "__main__":
     all_data_path = "KNN_armyAllData1.csv"
 
     fix_data(all_data_path, m_center, f_center)
+
+    plot_training_data(training_data, m_center, f_center)
+    plot_testing_data(testing_data, m_center, f_center)
