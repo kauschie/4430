@@ -95,8 +95,49 @@ def avg_data(x_arr, y_arr):
 
     return sorted_x, sorted_y
 
+
+
+
+
+def get_height_weight_avg(heights, weights, max_h, min_h, max_w, min_w):
+    count_h = len(heights)
+    count_w = len(weights)
+    if count_h != count_w:
+        print(f"count_h{count_h} != count_w{count_w}")
+        exit(1)
+
+    height_avg = sum(heights) / count_h
+    weight_avg = sum(weights) / count_w
+
+
+    heights_n = [((h-min_h)/(max_h-min_h)) for h in heights]
+    weights_n = [((w-min_w)/(max_w-min_w)) for w in weights]
+    
+    height_avg = sum(heights_n) / len(heights_n)
+    weight_avg = sum(weights_n) / len(weights_n)
+        
+
+    return height_avg, weight_avg
+
+def get_avg_bmi(heights_m, weights_m, heights_f, weights_f):
+    bmis_m = []
+    bmis_f = []
+    for i in range(len(heights_m)):
+        bmis_m.append((weights_m[i]/(heights_m[i]**2))*703)
+    for i in range(len(heights_f)):
+        bmis_f.append((weights_f[i]/(heights_f[i]**2))*703)
+
+    max_bmi = max(max(bmis_m), max(bmis_f))
+    min_bmi = min(min(bmis_m), min(bmis_f))
+    
+
+    bmis_m = [((b-min_bmi)/(max_bmi-min_bmi)) for b in bmis_m]
+    bmis_f = [((b-min_bmi)/(max_bmi-min_bmi)) for b in bmis_f]
+
+    return (sum(bmis_m)/len(bmis_m), sum(bmis_f)/len(bmis_f))
+
 def smooth_plot(x, y, label):
-    x_smooth = np.linspace(min(x), max(x), 100)
+    x_smooth = np.linspace(min(x), max(x), 200)
     # spline = make_interp_spline(x, y, k=1)
     pchip = PchipInterpolator(x, y)
     y_smooth = pchip(x_smooth)
@@ -165,6 +206,7 @@ if __name__ == "__main__":
     plt.plot(sorted_avg_x_male, sorted_avg_y_male, marker='o', label="Male")
     plt.plot(sorted_avg_x_female, sorted_avg_y_female, marker='o', label="Female")
     
+    # Spline
     smooth_plot(sorted_avg_x_male, sorted_avg_y_male, "Male Interpolated")
     smooth_plot(sorted_avg_x_female, sorted_avg_y_female, "Female Interpolated")
     
@@ -210,55 +252,52 @@ if __name__ == "__main__":
 
     # Area
 
-    area_plot_data_m = get_cnt_sum(ds1['m']['h'], ds1['m']['w'])
-    x_vals_m = sorted(area_plot_data_m.keys())
-    # y_vals_m = [area_plot_data_m[x][1] for x in x_vals_m]
+    male_heights = ds1['m']['h']
+    fem_heights = ds1['f']['h']
 
-    area_plot_data_f = get_cnt_sum(ds1['f']['h'], ds1['f']['w'])
-    x_vals_f = sorted(area_plot_data_f.keys())
-    # y_vals_f = [area_plot_data_f[x][1] for x in x_vals_f]
+    m_freq = {}
+    for m in male_heights:
+        cnt = m_freq.get(m, 0)
+        m_freq[m] = cnt + 1
 
-    x_vals = list(set(x_vals_m + x_vals_f))
-    # print(len(x_vals))
-    # print(x_vals)
+    f_freq = {}
+    for f in fem_heights:
+        cnt = f_freq.get(f, 0)
+        f_freq[f] = cnt + 1
+
+    # x_vals_m = m_freq.keys()
+    # x_vals_f = f_freq.keys()
+
+    x_vals = sorted(set(m_freq.keys()) | set(f_freq.keys()))
+
     y_vals_m = []
     y_vals_f = []
-    for i in x_vals:
-        # do men
-        t = area_plot_data_m.get(i, (0,0))
-        if t == (0,0):
-            y_vals_m.append(0)
-        else:
-            y_vals_m.append(t[1])
-        # do women
-        t = area_plot_data_f.get(i, (0,0))
-        if t == (0,0):
-            y_vals_f.append(0)
-        else:
-            y_vals_f.append(t[1])
+    for x in x_vals:
+        y_vals_m.append(m_freq.get(x,0))
+        y_vals_f.append(f_freq.get(x,0))
 
 
     # Create Figure with Two Subplots
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    # fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     ##  Left: `stackplot()`
     ##  - traditional stacking method
     ##  - data may be obscured
-    axes[0].stackplot(x_vals, y_vals_f, y_vals_m, labels=["Female", "Male"], colors=["darkred", "royalblue"], alpha=0.8)
-    axes[0].set_xlabel("Height")
-    axes[0].set_ylabel("Count")
-    axes[0].set_title("Stacked Area Chart")
-    axes[0].legend(title="Groups")
+    plt.stackplot(x_vals, y_vals_f, y_vals_m, labels=["Female", "Male"], colors=["darkred", "royalblue"], alpha=0.8)
+    plt.xlabel("Height")
+    plt.ylabel("Count")
+    plt.title("Stacked Area Chart")
+    plt.legend(title="Groups")
 
     ##  Right: `fill_between()`
     ## - shows both groups independently 
     ## - transparency ensures both are visible
-    axes[1].fill_between(x_vals, y_vals_m, alpha=0.6, label="Male", color="royalblue")
-    axes[1].fill_between(x_vals, y_vals_f, alpha=0.6, label="Female", color="darkred")
-    axes[1].set_xlabel("Height")
-    axes[1].set_ylabel("Count")
-    axes[1].set_title("Simple Area Chart")
-    axes[1].legend(title="Groups")
+    # axes[1].fill_between(x_vals, y_vals_m, alpha=0.6, label="Male", color="royalblue")
+    # axes[1].fill_between(x_vals, y_vals_f, alpha=0.6, label="Female", color="darkred")
+    # axes[1].set_xlabel("Height")
+    # axes[1].set_ylabel("Count")
+    # axes[1].set_title("Simple Area Chart")
+    # axes[1].legend(title="Groups")
 
     # Adjust Layout
     plt.tight_layout()
@@ -276,8 +315,8 @@ if __name__ == "__main__":
 
     # Customize Labels
     plt.xlabel('Group')
-    plt.ylabel('Distance')
-    plt.title('Cleveland Dot Graph - Distance by Group')
+    plt.ylabel('Diameter (cm)')
+    plt.title('Cleveland Dot Graph - Diameter by Group')
 
     plt.show()
 
@@ -286,6 +325,69 @@ if __name__ == "__main__":
 
 
     # Radar TODO
+
+    max_h = max(max(ds1['m']['h']), max(ds1['f']['h']))
+    max_w = max(max(ds1['m']['w']), max(ds1['f']['w']))
+    min_h = min(min(ds1['m']['h']), min(ds1['f']['h']))
+    min_w = min(min(ds1['m']['w']), min(ds1['f']['w']))
+
+
+    avg_m_h, avg_m_w = get_height_weight_avg(ds1['m']['h'], ds1['m']['w'], max_h, min_h, max_w, min_w)
+    avg_w_h, avg_w_w = get_height_weight_avg(ds1['f']['h'], ds1['f']['w'], max_h, min_h, max_w, min_w)
+    avg_m_bmi, avg_f_bmi = get_avg_bmi(ds1['m']['h'], ds1['m']['w'], ds1['f']['h'], ds1['f']['w'])
+
+    # Categories we'll plot around the radar
+    categories = ["Average Height", "Average Weight", "Average BMI"]
+
+    # Values for Males and Females
+    male_vals = [avg_m_h, avg_m_w, avg_m_bmi]
+    female_vals = [avg_w_h, avg_w_w, avg_f_bmi]
+
+
+        # Number of variables (e.g., Height, Weight, BMI)
+    N = len(categories)
+
+    # Compute angle for each category (in radians), plus repeat the first to close the circle
+    angles = [n / float(N) * 2 * np.pi for n in range(N)]
+    angles += angles[:1]  # repeat the first angle
+
+    # Radar chart is a polar plot
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6, 6))
+
+    # --------
+    # Plot for Males
+    # --------
+    male_vals_cycle = male_vals + male_vals[:1]  # repeat first value to close polygon
+    ax.plot(angles, male_vals_cycle, color='blue', linewidth=2, label='Male')
+    ax.fill(angles, male_vals_cycle, color='blue', alpha=0.1)  # optional fill
+
+    # --------
+    # Plot for Females
+    # --------
+    female_vals_cycle = female_vals + female_vals[:1]
+    ax.plot(angles, female_vals_cycle, color='red', linewidth=2, label='Female')
+    ax.fill(angles, female_vals_cycle, color='red', alpha=0.1)
+
+    # --------
+    # Fix the x-axis (around the circle) to use our categories
+    # --------
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(categories)
+
+    # Optionally, adjust the radial limits if your values differ significantly
+    # ax.set_ylim(0, max(male_vals + female_vals) * 1.2)
+
+    # Add legend and title
+    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
+    ax.set_title("Radar Chart: Comparing Male vs. Female Averages", y=1.08)
+
+    plt.show()
+
+
+
+
+
+
 
 
 
@@ -305,17 +407,16 @@ if __name__ == "__main__":
     df = pd.DataFrame(ds2)
     sns.set_style('darkgrid')
     plt.figure(figsize=(8,6))
-    sns.stripplot(x='c', y='d', data=df, color='gray', size=4, jitter=True, alpha=0.4)
+    # sns.stripplot(x='c', y='d', data=df, color='gray', size=4, jitter=True, alpha=0.4)
     ax = sns.boxplot(x='c', y='d', data=df, palette='coolwarm')
     # Overlay Individual Data Points (stripplot)
 
     ax.set_xticklabels(['Not Merlot', 'Merlot'])
 
     # Customize Labels
-    plt.xlabel('Group')
-    plt.ylabel('Distance')
-    plt.title('Box Plot of Distance by Group')
-
+    plt.xlabel('')
+    plt.ylabel('Diameter (cm)')
+    plt.title('Box Plot of Diameter by Group')
     plt.show()
 
 
