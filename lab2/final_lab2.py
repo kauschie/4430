@@ -150,14 +150,14 @@ def make_pictogram_baby(groups, freq):
     # Define marker types (emoji symbols)
     markers = ['o', 's']
     colors = ['royalblue', 'darkred']
-    g = ['Not Merlot', 'Merlot']
+    g = ['100 Not Merlot Grapes', '100 Merlot Grapes']
 
     # Create Figure
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Generate pictogram
-    x_spacing = 6  # Horizontal spacing between groups
-    y_spacing = 1.5  # Vertical spacing
+    x_spacing = 7  # Horizontal spacing between groups
+    y_spacing = 1  # Vertical spacing
 
     for i, (label, count) in enumerate(zip(groups, freq)):
         num_icons = int(count / icon_size)  # Scale frequency to number of icons
@@ -167,7 +167,7 @@ def make_pictogram_baby(groups, freq):
         for j in range(num_icons):
             row = j // num_rows  # Row index
             col = j % num_rows   # Column index
-            x = i * x_spacing + col * 0.6  # Adjust X position for each icon
+            x = i * x_spacing + col * 0.7  # Adjust X position for each icon
             y = -row * y_spacing  # Adjust Y position to stack
             
             # **Use `text()` instead of scatter to place emojis**
@@ -176,14 +176,107 @@ def make_pictogram_baby(groups, freq):
     # Customize appearance
     ax.set_xlim(-1, x_spacing * len(groups))  # Adjust x-axis limits
     ax.set_ylim(-1, 1)  # Adjust height to fit icons
-    ax.set_xticks([x_spacing * i for i in range(len(groups))])
-    ax.set_xticklabels(groups, fontsize=12, fontweight='bold')
+    ax.set_xticks([])
+    # ax.set_xticklabels(groups, fontsize=12, fontweight='bold')
     ax.set_yticks([])  # Hide y-axis numbers
     ax.set_title("Pictogram of Grape Count", fontsize=14, fontweight='bold')
 
     legend_handles = [mlines.Line2D([], [], color='w', marker=markers[i], markerfacecolor=colors[i], markersize=10, label=g[i]) for i in range(len(groups))]
     ax.legend(handles=legend_handles, loc="upper right", title="Groups")
     plt.show()
+
+
+def make_bubble_graph(ds1, num_bins=20, scale_factor=5):
+    """
+    Creates a bubble plot of (Height vs. Weight) for males and females,
+    with bubble sizes proportional to frequency counts in each 2D bin.
+
+    Parameters
+    ----------
+    ds1 : dict
+        Dictionary of data, e.g.:
+            ds1['m']['h'] -> list of male heights
+            ds1['m']['w'] -> list of male weights
+            ds1['f']['h'] -> list of female heights
+            ds1['f']['w'] -> list of female weights
+    num_bins : int, optional
+        Number of bins along each axis (default=20).
+    scale_factor : float, optional
+        Scaling for the bubble sizes (default=5).
+    """
+
+    # 1. Define bins for males
+    height_bins_m = np.linspace(min(ds1['m']['h']), max(ds1['m']['h']), num_bins)
+    weight_bins_m = np.linspace(min(ds1['m']['w']), max(ds1['m']['w']), num_bins)
+
+    # 2. Define bins for females
+    height_bins_f = np.linspace(min(ds1['f']['h']), max(ds1['f']['h']), num_bins)
+    weight_bins_f = np.linspace(min(ds1['f']['w']), max(ds1['f']['w']), num_bins)
+
+    # 3. Create 2D histograms
+    H_m, xedges_m, yedges_m = np.histogram2d(ds1['m']['h'], ds1['m']['w'], 
+                                             bins=[height_bins_m, weight_bins_m])
+    H_f, xedges_f, yedges_f = np.histogram2d(ds1['f']['h'], ds1['f']['w'], 
+                                             bins=[height_bins_f, weight_bins_f])
+
+    # (Optional) Transpose counts if you prefer rows->y, columns->x
+    H_m = H_m.T
+    H_f = H_f.T
+
+    # 4. Compute bin centers for males
+    x_centers_m = 0.5 * (xedges_m[:-1] + xedges_m[1:])
+    y_centers_m = 0.5 * (yedges_m[:-1] + yedges_m[1:])
+    X_m, Y_m = np.meshgrid(x_centers_m, y_centers_m)
+
+    # Flatten for use in plt.scatter()
+    X_m_flat = X_m.ravel()
+    Y_m_flat = Y_m.ravel()
+    H_m_flat = H_m.ravel()
+
+    # 5. Compute bin centers for females
+    x_centers_f = 0.5 * (xedges_f[:-1] + xedges_f[1:])
+    y_centers_f = 0.5 * (yedges_f[:-1] + yedges_f[1:])
+    X_f, Y_f = np.meshgrid(x_centers_f, y_centers_f)
+
+    X_f_flat = X_f.ravel()
+    Y_f_flat = Y_f.ravel()
+    H_f_flat = H_f.ravel()
+
+    # 6. Create the bubble plot
+    plt.figure(figsize=(8, 6))
+
+    # Males
+    plt.scatter(
+        X_m_flat, Y_m_flat,
+        s = H_m_flat * scale_factor,  # Bubble size ~ frequency
+        alpha = 0.6,
+        color = 'blue',
+        label = 'Male'
+    )
+    # print(H_m_flat * scale_factor)
+
+    # Females
+    plt.scatter(
+        X_f_flat, Y_f_flat,
+        s = H_f_flat * scale_factor,
+        alpha = 0.6,
+        color = 'red',
+        label = 'Female'
+    )
+
+    # plt.xticks(x_centers_m)
+    # plt.yticks(y_centers_m)
+    plt.xlabel('Height Bin')
+    plt.ylabel('Weight Bin')
+    ax = plt.gca()
+    ax.set_xlim(left=55)
+    plt.locator_params(axis='x', nbins=20)  # tries to create up to 10 x-ticks
+    plt.locator_params(axis='y', nbins=20)  # tries to create up to 10 y-ticks
+    plt.title('Bubble Plot: Height vs. Weight Frequency')
+    plt.legend()
+    plt.show()
+
+
 
 # Function to hide Pie chart percentage
 def my_autopct(pct):
@@ -303,6 +396,13 @@ if __name__ == "__main__":
     plt.show()
 
 
+
+
+    # Bubble Chart
+
+    make_bubble_graph(ds1, scale_factor=20)
+
+
     # Area
 
     male_heights = ds1['m']['h']
@@ -359,11 +459,12 @@ if __name__ == "__main__":
 
     # Dot Graph
     df = pd.DataFrame(ds2)
-    custom_palette = {'0': 'royalblue', '1': 'darkred'}
+    # custom_palette = {'0': 'royalblue', '1': 'darkred'}
 
     sns.set_style('whitegrid')
     plt.figure(figsize=(8,6))
-    ax = sns.stripplot(x='c', y='d', data=df, size=4, jitter=True, alpha=0.6, palette=custom_palette)
+    ax = sns.stripplot(x='c', y='d', data=df, size=4, jitter=True, alpha=0.6)
+    ax.set_xticks([0,1])
     ax.set_xticklabels(['Not Merlot', 'Merlot'])
 
     # Customize Labels
@@ -373,40 +474,7 @@ if __name__ == "__main__":
 
     plt.show()
 
-    # Bubble TODO
-    # Count occurrences of (height, weight) pairs for each gender
-    male_counts = Counter(zip(ds1['m']['h'], ds1['m']['w']))
-    female_counts = Counter(zip(ds1['f']['h'], ds1['f']['w']))
 
-    # Extract data for plotting (Male)
-    m_heights, m_weights, m_frequencies = zip(*[(h, w, c) for (h, w), c in male_counts.items()])
-    m_bubble_sizes = [(freq**freq) * 10 for freq in m_frequencies]  # Increased scale factor
-
-    # Extract data for plotting (Female)
-    f_heights, f_weights, f_frequencies = zip(*[(h, w, c) for (h, w), c in female_counts.items()])
-    f_bubble_sizes = [(freq**freq) * 10 for freq in f_frequencies]  # Increased scale factor
-
-    # Create bubble chart
-    plt.figure(figsize=(12, 7))
-
-    # Plot Males (Same Blue Color)
-    plt.scatter(m_heights, m_weights, s=m_bubble_sizes, alpha=0.6, 
-                color="blue", edgecolors="black", label="Males")
-
-    # Plot Females (Same Red Color)
-    plt.scatter(f_heights, f_weights, s=f_bubble_sizes, alpha=0.6, 
-                color="red", edgecolors="black", label="Females")
-
-    # Labels and title
-    plt.xlabel("Height (inches)")
-    plt.ylabel("Weight (pounds)")
-    plt.title("Male & Female Height vs. Weight Frequency (Bubble Chart)")
-
-    # Legend
-    plt.legend()
-
-    # Show plot
-    plt.show()
 
 
     # Radar
@@ -437,7 +505,7 @@ if __name__ == "__main__":
     angles += angles[:1]  # repeat the first angle
 
     # Radar chart is a polar plot
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6, 6))
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(12, 7))
 
     # --------
     # Plot for Males
@@ -484,10 +552,10 @@ if __name__ == "__main__":
     df = pd.DataFrame(ds2)
     sns.set_style('darkgrid')
     plt.figure(figsize=(8,6))
-    # sns.stripplot(x='c', y='d', data=df, color='gray', size=4, jitter=True, alpha=0.4)
-    ax = sns.boxplot(x='c', y='d', data=df, palette='coolwarm')
+    sns.stripplot(x='c', y='d', data=df, color='gray', size=4, jitter=True, alpha=0.4)
+    ax = sns.boxplot(x='c', y='d', data=df)
     # Overlay Individual Data Points (stripplot)
-
+    ax.set_xticks([0,1])
     ax.set_xticklabels(['Not Merlot', 'Merlot'])
 
     # Customize Labels
@@ -506,8 +574,8 @@ if __name__ == "__main__":
     d0 = [d for i, d in enumerate(diameters) if categories[i] == 0]
     d1 = [d for i, d in enumerate(diameters) if categories[i] == 1]
 
-    print("First 10 values for d0:", d0[:10])
-    print("First 10 values for d1:", d1[:10])
+    # print("First 10 values for d0:", d0[:10])
+    # print("First 10 values for d1:", d1[:10])
 
     # Determine the bins for a bin width of 1 mm.
     min_d = int(np.floor(min(diameters)))
@@ -544,16 +612,16 @@ if __name__ == "__main__":
     ax1 = axes[0]
     c1 = ax1.pcolormesh(xedges_m, yedges_m, H_m.T, cmap='coolwarm', shading='auto')
     fig.colorbar(c1, ax=ax1)
-    ax1.set_xlabel('Height (cm)')
-    ax1.set_ylabel('Weight (kg)')
+    ax1.set_xlabel('Height (in)')
+    ax1.set_ylabel('Weight (lbs)')
     ax1.set_title('Male Height-Weight Distribution')
 
     # Female Heatmap
     ax2 = axes[1]
     c2 = ax2.pcolormesh(xedges_f, yedges_f, H_f.T, cmap='coolwarm', shading='auto')
     fig.colorbar(c2, ax=ax2)
-    ax2.set_xlabel('Height (cm)')
-    ax2.set_ylabel('Weight (kg)')
+    ax2.set_xlabel('Height (in)')
+    ax2.set_ylabel('Weight (lbs)')
     ax2.set_title('Female Height-Weight Distribution')
 
     plt.tight_layout()
@@ -601,8 +669,8 @@ if __name__ == "__main__":
     # Male Plot
     ax1 = fig.add_subplot(121, projection='3d')
     ax1.plot_surface(Xm, Ym, Zm, cmap='Blues', edgecolor='black', alpha=0.7)
-    ax1.set_xlabel('Height (cm)')
-    ax1.set_ylabel('Weight (kg)')
+    ax1.set_xlabel('Height (inch)')
+    ax1.set_ylabel('Weight (lbs)')
     ax1.set_zlabel('Count')
     ax1.set_title('Male: Height vs Weight Frequency 20 Bins')
 
@@ -611,8 +679,8 @@ if __name__ == "__main__":
     # Female Plot
     ax2 = fig.add_subplot(122, projection='3d')
     ax2.plot_surface(Xf, Yf, Zf, cmap='Reds', edgecolor='black', alpha=0.7)
-    ax2.set_xlabel('Height (cm)')
-    ax2.set_ylabel('Weight (kg)')
+    ax2.set_xlabel('Height (inch)')
+    ax2.set_ylabel('Weight (lbs)')
     ax2.set_zlabel('Count')
     ax2.set_title('Female: Height vs Weight Frequency 20 Bins')
 
@@ -628,7 +696,7 @@ if __name__ == "__main__":
     }
 
     df_bins = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in bin_info.items()]))
-    print(df_bins)
+    # print(df_bins)
 
     # Heatmaps visualizing distance from the mean
 
