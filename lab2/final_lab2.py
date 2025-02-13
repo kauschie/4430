@@ -187,39 +187,33 @@ def make_pictogram_baby(groups, freq):
 
 
 def make_bubble_graph(ds1, num_bins=20, scale_factor=5):
-    """
-    Creates a bubble plot of (Height vs. Weight) for males and females,
-    with bubble sizes proportional to frequency counts in each 2D bin.
 
-    Parameters
-    ----------
-    ds1 : dict
-        Dictionary of data, e.g.:
-            ds1['m']['h'] -> list of male heights
-            ds1['m']['w'] -> list of male weights
-            ds1['f']['h'] -> list of female heights
-            ds1['f']['w'] -> list of female weights
-    num_bins : int, optional
-        Number of bins along each axis (default=20).
-    scale_factor : float, optional
-        Scaling for the bubble sizes (default=5).
-    """
 
-    # 1. Define bins for males
-    height_bins_m = np.linspace(min(ds1['m']['h']), max(ds1['m']['h']), num_bins)
-    weight_bins_m = np.linspace(min(ds1['m']['w']), max(ds1['m']['w']), num_bins)
+    all_heights = ds1['m']['h'] + ds1['f']['h']
+    all_weights = ds1['m']['w'] + ds1['f']['w']
 
-    # 2. Define bins for females
-    height_bins_f = np.linspace(min(ds1['f']['h']), max(ds1['f']['h']), num_bins)
-    weight_bins_f = np.linspace(min(ds1['f']['w']), max(ds1['f']['w']), num_bins)
+    # Use the same bins for both M and F
+    # height_bins = np.linspace(min(all_heights), max(all_heights), num_bins)
+    # weight_bins = np.linspace(min(all_weights), max(all_weights), num_bins)
+
+    height_bins = np.arange(min(all_heights), max(all_heights), 2)
+    weight_bins = np.arange(min(all_weights), max(all_weights), int((max(all_weights)-min(all_weights))/20))
+    
+
+    # # 1. Define bins for males
+    # height_bins_m = np.linspace(min(ds1['m']['h']), max(ds1['m']['h']), num_bins)
+    # weight_bins_m = np.linspace(min(ds1['m']['w']), max(ds1['m']['w']), num_bins)
+
+    # # 2. Define bins for females
+    # height_bins_f = np.linspace(min(ds1['f']['h']), max(ds1['f']['h']), num_bins)
+    # weight_bins_f = np.linspace(min(ds1['f']['w']), max(ds1['f']['w']), num_bins)
 
     # 3. Create 2D histograms
     H_m, xedges_m, yedges_m = np.histogram2d(ds1['m']['h'], ds1['m']['w'], 
-                                             bins=[height_bins_m, weight_bins_m])
+                                             bins=[height_bins, weight_bins])
     H_f, xedges_f, yedges_f = np.histogram2d(ds1['f']['h'], ds1['f']['w'], 
-                                             bins=[height_bins_f, weight_bins_f])
+                                             bins=[height_bins, weight_bins])
 
-    # (Optional) Transpose counts if you prefer rows->y, columns->x
     H_m = H_m.T
     H_f = H_f.T
 
@@ -249,7 +243,7 @@ def make_bubble_graph(ds1, num_bins=20, scale_factor=5):
     plt.scatter(
         X_m_flat, Y_m_flat,
         s = H_m_flat * scale_factor,  # Bubble size ~ frequency
-        alpha = 0.6,
+        alpha = 0.3,
         color = 'blue',
         label = 'Male'
     )
@@ -259,7 +253,7 @@ def make_bubble_graph(ds1, num_bins=20, scale_factor=5):
     plt.scatter(
         X_f_flat, Y_f_flat,
         s = H_f_flat * scale_factor,
-        alpha = 0.6,
+        alpha = 0.3,
         color = 'red',
         label = 'Female'
     )
