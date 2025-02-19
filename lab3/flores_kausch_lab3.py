@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import math
 import csv
 import matplotlib
@@ -143,25 +144,99 @@ def read_judges(filepath):
         # print()
     return data
 
+
+import pandas as pd
+
 def min_max_norm(list_of_vals):
+    """
+    Applies Min-Max Normalization to a list of values.
+    """
     l_max = max(list_of_vals)
     l_min = min(list_of_vals)
-    normalized_vals = []
-    for v in list_of_vals:
-        normalized_vals.append((v-l_min)/(l_max-l_min))
+    return [(v - l_min) / (l_max - l_min) for v in list_of_vals]
 
-    print(f"min: {l_min}")
-    print(f"max: {l_max}")
-    return normalized_vals
+def remove_outliers_iqr(group):
+    """
+    Removes entire rows from a group if any feature is an outlier using the IQR method.
+    Returns the cleaned group and the total number of removed rows.
+    """
+    df = pd.DataFrame(group)  # Convert dictionary to DataFrame
+    original_size = len(df)  # Store the original number of rows
+
+    # Compute IQR bounds for each feature (excluding the 'Species' column)
+    lower_bounds, upper_bounds = {}, {}
+    for col in df.columns[:-1]:  # Ignore 'Species' column
+        Q1 = df[col].quantile(0.25)  # 25th percentile
+        Q3 = df[col].quantile(0.75)  # 75th percentile
+        IQR = Q3 - Q1  # Interquartile range
+        lower_bounds[col] = Q1 - 1.5 * IQR
+        upper_bounds[col] = Q3 + 1.5 * IQR
+
+    # Create a mask that identifies entire rows to remove if ANY feature is an outlier
+    mask = (df.iloc[:, :-1] < pd.Series(lower_bounds)) | (df.iloc[:, :-1] > pd.Series(upper_bounds))
+    rows_to_remove = mask.any(axis=1)  # Identify rows where ANY feature is an outlier
+
+    # Count total outliers removed
+    removed_rows = rows_to_remove.sum()
+
+    # Remove entire rows where any feature was an outlier
+    df_cleaned = df[~rows_to_remove].reset_index(drop=True)
+
+    return df_cleaned.to_dict(orient="list"), removed_rows  # Return cleaned data + count of removed rows
+
+def preprocess_iris(iris_dict):
+    """
+    Removes outliers from each group and normalizes features using Min-Max Normalization.
+    Also prints the number of outliers removed from each group.
+    """
+    print("before")
+    for k,v in iris_dict.items():
+        print(f"{k}")
+        for k2,v2 in iris_dict[k].items():
+            print(f"len({k2}): {len(v2)}")
+
+    # Step 1: Extract groups (excluding "all")
+    groups = {k: v for k, v in iris_dict.items() if k != "all"}
+
+    # Step 2: Remove outliers for each group and store removal counts
+    new_g_no_outliers = {}
+    outlier_counts = {}
+
+    for k, v in groups.items():
+        cleaned_data, total_outliers = remove_outliers_iqr(v)
+        new_g_no_outliers[k] = cleaned_data
+        outlier_counts[k] = total_outliers
+
+    # Print outlier summary
+    print("\n📊 Outlier Removal Summary:")
+    for group, count in outlier_counts.items():
+        print(f"Group {group}: {count} rows removed")
+
+    # Step 3: Compute feature-wise min/max across all cleaned groups
+    all_data_no_outliers = pd.concat([pd.DataFrame(v) for v in new_g_no_outliers.values()])
+    feature_min = all_data_no_outliers.iloc[:, :-1].min()
+    feature_max = all_data_no_outliers.iloc[:, :-1].max()
+
+    # Step 4: Normalize the data feature-wise
+    normed_no_outlier_dict = {}
+    for key, value in new_g_no_outliers.items():
+        df = pd.DataFrame(value)  # Convert each group back to DataFrame
+        for col in df.columns[:-1]:  # Normalize each feature
+            df[col] = (df[col] - feature_min[col]) / (feature_max[col] - feature_min[col])
+        normed_no_outlier_dict[key] = df.to_dict(orient="list")
+
+    print()
+    print("after")
+    # print(normed_no_outlier_dict)
+    for k,v in normed_no_outlier_dict.items():
+        print(f"{k}")
+        for k2,v2 in normed_no_outlier_dict[k].items():
+            print(f"len({k2}): {len(v2)}")
+
+    return normed_no_outlier_dict
 
 
-def preprocess_iris():
-    # outlier detection (intra-group)
 
-    # min/max normalization (all group)
-
-    # return preprocessed data
-    pass
 
 def main():
     # need nxn matrix for all
@@ -170,10 +245,9 @@ def main():
     irisData = read_iris(iris_path)
     judgeData = read_judges(judge_path)
 
-    data = irisData['all']['Sepal length']
-    norms = min_max_norm(data)
-    print(f"data: {data}")
-    print(f"norms: {norms}")
+    normed_no_outlier_dict = preprocess_iris(irisData)
+
+
 
 
 if __name__ == "__main__":
