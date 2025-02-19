@@ -1,7 +1,9 @@
 import numpy as np
 import math
 import csv
+import seaborn as sns
 import matplotlib
+import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
 
 steam_purch_path = 'MeasurementsExamples_SteamPurchase.csv'
@@ -163,6 +165,43 @@ def preprocess_iris():
     # return preprocessed data
     pass
 
+def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
+    # Set size
+    plt.figure(figsize=(12,7))
+    # Set up the heatmap using Seaborn
+    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap)
+
+    # Add a title
+    plt.title(title)
+
+    # Display the heatmap
+    plt.show()
+
+def euclidean_distance(data):
+    # Number of data points
+    n = len(data['Sepal length'])
+    
+    # Create an array of shape (n, 4) where each row represents one flower's features
+    features = np.column_stack((
+        data['Sepal length'],
+        data['Sepal width'],
+        data['Petal length'],
+        data['Petal width']
+    ))
+    
+    # Initialize an empty distance matrix
+    distance_matrix = np.zeros((n, n))
+    
+    # Compute pairwise Euclidean distances
+    for i in range(n):
+        for j in range(i, n):
+            diff = features[i] - features[j]
+            dist = np.sqrt(np.sum(diff**2))
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist  # The matrix is symmetric
+    
+    return distance_matrix
+
 def main():
     # need nxn matrix for all
     steamPurchaseData = read_steamPurchase(steam_purch_path)
@@ -175,6 +214,10 @@ def main():
     print(f"data: {data}")
     print(f"norms: {norms}")
 
+    # Dom testing ed functionality
+    data = irisData['all']
+    ed = euclidean_distance(data)
+    plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap", "Blues")
 
 if __name__ == "__main__":
     main()
