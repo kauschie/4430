@@ -26,7 +26,7 @@ def read_steamPurchase(filepath):
                     continue
                 else:
                     # print(f"{row[i]}", end=", ")  # Placeholder for non-empty values
-                    persons[i].append(int(row[i]))
+                    persons[i].append(row[i])
             # print()
         for i in range(len(headers)):
             data[headers[i]]=persons[i]
@@ -296,6 +296,50 @@ def euclidean_distance(data):
     
     return distance_matrix
 
+def create_purchased_genre(plist, steamList):
+    glist = {}
+    ids = steamList['AppID']
+    name_list = steamList['Name']
+    genre_list = steamList['Genres']
+    for person, item_list in plist.items():
+        p_genres = []
+        # print(f"{person}")
+        for appid in item_list:
+            idx = ids.index(appid)
+            # print(f"game {name_list[idx]} has genre {genre_list[idx]}")
+            p_genres.append(genre_list[idx])
+        glist[person] = p_genres
+    return glist
+
+def get_genre_set(steamListdata):
+    return sorted(set(steamListdata['Genres']))
+
+def get_friend_genre_counts(genre_set, friend_genres):
+    f_genre_count = {}
+
+    for friend, glist in friend_genres.items():
+        counts = [0]*(len(genre_set))
+        for item in glist:
+            idx = genre_set.index(item)
+            counts[idx] += 1
+        f_genre_count[friend] = counts
+    # print(f"genre set {genre_set}")
+    # print(f"f_genre_count {f_genre_count}")
+    return f_genre_count
+
+def get_gc_2darr(fdc):
+    outer = [fdc['Person1'], fdc['Person2'],fdc['Person3'],fdc['Person4'],fdc['Person5']]
+    return outer
+
+def preprocess_steam(steamPurchaseData, steamListData):
+    friend_genres = create_purchased_genre(steamPurchaseData, steamListData)
+    genre_set = get_genre_set(steamListData)
+    # print(f"genre_set {genre_set} has {len(genre_set)} items:")
+    friend_genre_count = get_friend_genre_counts(genre_set, friend_genres)
+    # print(friend_genre_count)
+    return get_gc_2darr(friend_genre_count)
+    
+
 def main():
     # need nxn matrix for all
 
@@ -309,11 +353,10 @@ def main():
     data = irisData['all']
     ed = euclidean_distance(data)
     # print(ed)
-    plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-
+    # plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
     ed2 = euclidean_distance(df_all_reconstructed)
     # print(f"\n\n{ed2}")
-    plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
+    # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
     # Should we show data summary?
 
@@ -321,6 +364,10 @@ def main():
     ## Steam Stuff
     steamPurchaseData = read_steamPurchase(steam_purch_path)
     steamListData = read_steamList(steam_list_path)
+    # organized as 
+    genre_2d = preprocess_steam(steamPurchaseData, steamListData)
+    print(genre_2d)
+
 
     ## Judge Stuff
     judgeData = read_judges(judge_path)
