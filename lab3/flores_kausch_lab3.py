@@ -146,9 +146,6 @@ def read_judges(filepath):
         # print()
     return data
 
-
-import pandas as pd
-
 def min_max_norm(list_of_vals):
     """
     Applies Min-Max Normalization to a list of values.
@@ -237,7 +234,26 @@ def preprocess_iris(iris_dict):
 
     return normed_no_outlier_dict
 
+def reconstruct_all(normed_no_outlier_dict):
+    """
+    Reconstructs df['all'] by concatenating g1, g2, and g3.
+    Appends a 'Species' column to differentiate groups.
+    """
+    # Convert each group dictionary back into a DataFrame and append species labels
+    df_g1 = pd.DataFrame(normed_no_outlier_dict["g1"])
+    df_g2 = pd.DataFrame(normed_no_outlier_dict["g2"])
+    df_g3 = pd.DataFrame(normed_no_outlier_dict["g3"])
 
+    # Append species labels (1, 2, 3)
+    df_g1["Species"] = 1
+    df_g2["Species"] = 2
+    df_g3["Species"] = 3
+
+    # Concatenate all groups into one DataFrame
+    df_all = pd.concat([df_g1, df_g2, df_g3], ignore_index=True)
+
+    # Convert back to dictionary format
+    return df_all.to_dict(orient="list")
 
 
 def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
@@ -279,19 +295,29 @@ def euclidean_distance(data):
 
 def main():
     # need nxn matrix for all
-    steamPurchaseData = read_steamPurchase(steam_purch_path)
-    steamListData = read_steamList(steam_list_path)
+
+    ## Iris Stuff
     irisData = read_iris(iris_path)
-    judgeData = read_judges(judge_path)
+    normed_no_outlier_dict = preprocess_iris(irisData) # has 3 groups not together
+    df_all_reconstructed = reconstruct_all(normed_no_outlier_dict) # merged back to 'all' equivalent
 
-    normed_no_outlier_dict = preprocess_iris(irisData)
-
-
-
-    # Dom testing ed functionality
+    # Calculate and Plot Distances
     data = irisData['all']
     ed = euclidean_distance(data)
-    plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap", "Blues")
+    plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
+
+    ed2 = euclidean_distance(df_all_reconstructed)
+    plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
+    
+    # Should we show data summary?
+
+
+    ## Steam Stuff
+    steamPurchaseData = read_steamPurchase(steam_purch_path)
+    steamListData = read_steamList(steam_list_path)
+
+    ## Judge Stuff
+    judgeData = read_judges(judge_path)
 
 if __name__ == "__main__":
     main()
