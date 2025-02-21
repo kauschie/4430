@@ -269,6 +269,35 @@ def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
     # Display the heatmap
     plt.show()
 
+def manhatten_distance(data):
+    # Number of data points
+    n = len(data['Sepal length'])
+    
+    # Create an array of shape (n, 4) where each row represents one flower's features
+    features = np.column_stack((
+        data['Sepal length'],
+        data['Sepal width'],
+        data['Petal length'],
+        data['Petal width']
+    ))
+
+    # print(features)
+    
+    # Initialize an empty distance matrix
+    distance_matrix = np.zeros((n, n))
+    
+    # Compute pairwise Manhatten distances
+    for i in range(n):
+        for j in range(i, n):
+            diff = features[i] - features[j]
+            # print(f"diff: {diff}")
+            dist = np.sum(np.abs(diff))
+            # print(f"dist: {dist}")
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist  # The matrix is symmetric
+    
+    return distance_matrix
+
 def euclidean_distance(data):
     # Number of data points
     n = len(data['Sepal length'])
@@ -352,9 +381,13 @@ def main():
     # Calculate and Plot Distances
     data = irisData['all']
     ed = euclidean_distance(data)
+    ed2 = euclidean_distance(df_all_reconstructed)
+    md = manhatten_distance(data)
+    print(md)
+    md2 = manhatten_distance(df_all_reconstructed)
+    print(md2)
     # print(ed)
     # plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-    ed2 = euclidean_distance(df_all_reconstructed)
     # print(f"\n\n{ed2}")
     # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
