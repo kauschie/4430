@@ -188,11 +188,11 @@ def preprocess_iris(iris_dict):
     Removes outliers from each group and normalizes features using Min-Max Normalization.
     Also prints the number of outliers removed from each group.
     """
-    print("before")
-    for k,v in iris_dict.items():
-        print(f"{k}")
-        for k2,v2 in iris_dict[k].items():
-            print(f"len({k2}): {len(v2)}")
+    # print("before")
+    # for k,v in iris_dict.items():
+    #     print(f"{k}")
+    #     for k2,v2 in iris_dict[k].items():
+    #         print(f"len({k2}): {len(v2)}")
 
     # Step 1: Extract groups (excluding "all")
     groups = {k: v for k, v in iris_dict.items() if k != "all"}
@@ -213,24 +213,25 @@ def preprocess_iris(iris_dict):
 
     # Step 3: Compute feature-wise min/max across all cleaned groups
     all_data_no_outliers = pd.concat([pd.DataFrame(v) for v in new_g_no_outliers.values()])
-    feature_min = all_data_no_outliers.iloc[:, :-1].min()
-    feature_max = all_data_no_outliers.iloc[:, :-1].max()
+    feature_min = all_data_no_outliers.iloc[:, :].min()
+    feature_max = all_data_no_outliers.iloc[:, :].max()
 
     # Step 4: Normalize the data feature-wise
     normed_no_outlier_dict = {}
     for key, value in new_g_no_outliers.items():
         df = pd.DataFrame(value)  # Convert each group back to DataFrame
-        for col in df.columns[:-1]:  # Normalize each feature
+        # print(f"\n\ndf{key}: {df}")
+        for col in df.columns[:]:  # Normalize each feature
             df[col] = (df[col] - feature_min[col]) / (feature_max[col] - feature_min[col])
         normed_no_outlier_dict[key] = df.to_dict(orient="list")
 
-    print()
-    print("after")
+    # print()
+    # print("after")
     # print(normed_no_outlier_dict)
-    for k,v in normed_no_outlier_dict.items():
-        print(f"{k}")
-        for k2,v2 in normed_no_outlier_dict[k].items():
-            print(f"len({k2}): {len(v2)}")
+    # for k,v in normed_no_outlier_dict.items():
+    #     print(f"{k}")
+    #     for k2,v2 in normed_no_outlier_dict[k].items():
+    #         print(f"len({k2}): {len(v2)}")
 
     return normed_no_outlier_dict
 
@@ -279,6 +280,8 @@ def euclidean_distance(data):
         data['Petal length'],
         data['Petal width']
     ))
+
+    # print(features)
     
     # Initialize an empty distance matrix
     distance_matrix = np.zeros((n, n))
@@ -300,13 +303,16 @@ def main():
     irisData = read_iris(iris_path)
     normed_no_outlier_dict = preprocess_iris(irisData) # has 3 groups not together
     df_all_reconstructed = reconstruct_all(normed_no_outlier_dict) # merged back to 'all' equivalent
+    # print(df_all_reconstructed)
 
     # Calculate and Plot Distances
     data = irisData['all']
     ed = euclidean_distance(data)
+    # print(ed)
     plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
 
     ed2 = euclidean_distance(df_all_reconstructed)
+    # print(f"\n\n{ed2}")
     plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
     # Should we show data summary?
