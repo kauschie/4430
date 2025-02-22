@@ -502,8 +502,7 @@ def calc_distances(arr, arr2):
             c_m.append(cosine_similarity(person1, person2))
         cos_mat.append(c_m)
 
-
-
+    # Print results
     print(f"\n\nJaccard Distances")
     print(f"------------------")
     print_2d_matrix(jacc_mat)
@@ -543,6 +542,19 @@ def make_judge_matrix(judgeData):
                 judgeData["Judge3"], judgeData["Judge4"],
                     judgeData["Judge5"], judgeData["Judge6"]]
     return j_mat
+
+###############################
+##  Judge Distance Functions ##
+###############################
+
+def pearson_correlation_coefficient(data, rowvar):
+    # Convert the input to a NumPy array (if it isn't one already)
+    matrix = np.array(data)
+    
+    # np.corrcoef, with the default rowvar=True, computes the correlation among rows
+    corr_matrix = np.corrcoef(matrix, rowvar=rowvar)
+    
+    return corr_matrix
 
 
 ##################################
@@ -646,6 +658,10 @@ def main():
     rj_mat = rank_judge_matrix(judge_mat)
     print(f" -- Judge Ranked Matrix -- ")
     print_2d_matrix(rj_mat)
+
+    # Pearson Correlation Coefficient
+    pcc_mat_judges = pearson_correlation_coefficient(judge_mat, True)
+    pcc_mat_swimmers = pearson_correlation_coefficient(judge_mat, False)
     
     ## swimmer x swimmer really only indicates difference in skill level
     ## it could be used to indicate bias against a swimmer, however, 
@@ -656,6 +672,8 @@ def main():
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
+    plot_distance_heatmap(pcc_mat_judges, "Pearson Correlation Coefficient Heatmap (Judge Scoring)", "managua", -1, 1)
+    plot_distance_heatmap(pcc_mat_swimmers, "Pearson Correlation Coefficient Heatmap (Swimmer Scores)", "RdYlBu", -1, 1)
 
 
 if __name__ == "__main__":
