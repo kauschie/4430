@@ -12,6 +12,11 @@ steam_list_path = 'MeasurementsExamples_SteamList.csv'
 iris_path = 'MeasurementsExamples_iris.csv'
 judge_path = 'MeasurementsExamples_Judges.csv'
 
+
+#########################
+##  File Reading Funcs ##
+#########################
+
 def read_steamPurchase(filepath):
     data = {}
     with open(filepath, 'r', newline='', encoding='utf-8-sig') as file:
@@ -49,8 +54,8 @@ def read_steamList(filepath):
         # print(data)
         # print()
     return data
-# Dataset order: Sepal length, Sepal width, Petal length, Petal width, Species 
 def read_iris(filepath):
+# Dataset order: Sepal length, Sepal width, Petal length, Petal width, Species 
     data = {}
     with open(filepath, 'r', newline='', encoding='utf-8-sig') as file:
         reader = csv.reader(file)
@@ -112,14 +117,12 @@ def read_iris(filepath):
         data = {"all": all, "g1": g1, "g2":g2, "g3":g3}
         # print(data)
     return data
-
 def read_judges(filepath):
     data = {}
     with open(filepath, 'r', newline='', encoding='utf-8-sig') as file:
         reader = csv.reader(file)
         p1, p2, p3, p4, p5, p6, p7, p8, p9, p10 = [], [], [], [], [], [], [], [], [], []
-        j1, j2, j3, j4, j5, j6 = [], [], [], [], [], []
-        judges = [j1, j2, j3, j4, j5, j6]
+        judges = []
         headers = next(reader)  # Read header row
         i = 0
         for row in reader:
@@ -133,7 +136,11 @@ def read_judges(filepath):
             p8.append(float(row[7]))
             p9.append(float(row[8]))
             p10.append(float(row[9]))
-            judges[i].append([float(row[0]), float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]), float(row[6]), float(row[7]), float(row[8])])
+            judges.append([float(row[0]), float(row[1]), 
+                           float(row[2]), float(row[3]), 
+                           float(row[4]), float(row[5]), 
+                           float(row[6]), float(row[7]), 
+                           float(row[8]), float(row[9])])
             i += 1
         p_data = {headers[0]:p1, headers[1]:p2, headers[2]:p3,
                 headers[3]:p4, headers[4]:p5, headers[0]:p6, 
@@ -145,6 +152,11 @@ def read_judges(filepath):
         # print(data)
         # print()
     return data
+
+
+#########################
+##  Iris Preprocessing ##
+#########################
 
 def min_max_norm(list_of_vals):
     """
@@ -235,71 +247,6 @@ def preprocess_iris(iris_dict):
 
     return normed_no_outlier_dict
 
-def make_binary_matrix(arr2d):
-    binary_mat = []
-    for row in arr2d:
-        new_list = []
-        # print(f"before: {row}")
-        for x in row:
-            if x > 0:
-                new_list.append(1)
-            else:
-                new_list.append(0)
-        # print(f"after: {new_list}")
-        binary_mat.append(new_list)
-    return binary_mat
-
-def hamming_distance(person1, person2):
-    sum = 0
-    for i in range(len(person1)):
-        sum += (abs(person1[i]-person2[i]))
-    return sum
-
-# TODO: Finish this function, gets called in calc distance
-def cosine_similarity(person1, person2):
-    ## calculated the cosine similarity
-    pass
-
-# measures dissimilarity
-# larger value means more dissimilar
-def jaccard_distance(person1, person2):
-    intersect, union = 0, 0
-    for i in range(len(person1)):
-        intersect += (1 if person1[i]==1 and person2[i]==1 else 0)
-        union += (1 if person1[i]==1 or person2[i]==1 else 0)
-    if union == 0:
-        return 0
-    return 1-(intersect/union)
-
-def calc_distance(arr):
-    jacc_mat = []
-    ham_mat = []
-    cos_mat = []
-    for person1 in arr:
-        j_m = []
-        h_m = []
-        c_m = []
-        for person2 in arr:
-            j_m.append(jaccard_distance(person1, person2))
-            h_m.append(hamming_distance(person1, person2))
-            c_m.append(cosine_similarity(person1, person2))
-        jacc_mat.append(j_m)
-        ham_mat.append(h_m)
-        cos_mat.append(c_m)
-
-
-
-    print(f"\n\nJaccard Distances")
-    print(f"------------------")
-    print(jacc_mat)
-    print(f"\n\nHamming Distances")
-    print(f"------------------")
-    print(ham_mat)
-    print(f"\n\nCosine Similarity")
-    print(f"------------------")
-    print(cos_mat)
-    return jacc_mat, ham_mat, cos_mat
-
 def reconstruct_all(normed_no_outlier_dict):
     """
     Reconstructs df['all'] by concatenating g1, g2, and g3.
@@ -322,17 +269,9 @@ def reconstruct_all(normed_no_outlier_dict):
     return df_all.to_dict(orient="list")
 
 
-def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
-    # Set size
-    plt.figure(figsize=(12,7))
-    # Set up the heatmap using Seaborn
-    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap)
-
-    # Add a title
-    plt.title(title)
-
-    # Display the heatmap
-    plt.show()
+###############################
+##  Iris Distance Functions  ##
+###############################
 
 def manhatten_distance(data):
     # Number of data points
@@ -390,6 +329,11 @@ def euclidean_distance(data):
     
     return distance_matrix
 
+
+##########################
+##  Steam Preprocessing ##
+##########################
+
 def create_purchased_genre(plist, steamList):
     glist = {}
     ids = steamList['AppID']
@@ -405,16 +349,33 @@ def create_purchased_genre(plist, steamList):
         glist[person] = p_genres
     return glist
 
+def make_binary_matrix(arr2d):
+    """ Makes Binary Matrx from frequency Matrix 
+        to calculate hamming distance and jaccard distance """
+    binary_mat = []
+    for row in arr2d:
+        new_list = []
+        # print(f"before: {row}")
+        for x in row:
+            if x > 0:
+                new_list.append(1)
+            else:
+                new_list.append(0)
+        # print(f"after: {new_list}")
+        binary_mat.append(new_list)
+    return binary_mat
+
 def get_genre_set(steamListdata):
     return sorted(set(steamListdata['Genres']))
 
 def get_friend_genre_counts(genre_set, friend_genres):
+    """ Returns Genre Frequencies """
     f_genre_count = {}
 
     for friend, glist in friend_genres.items():
         counts = [0]*(len(genre_set))
         for item in glist:
-            idx = genre_set.index(item)
+            idx = genre_set.index(item) # gets index of genre in genre set
             counts[idx] += 1
         f_genre_count[friend] = counts
     # print(f"genre set {genre_set}")
@@ -422,53 +383,200 @@ def get_friend_genre_counts(genre_set, friend_genres):
     return f_genre_count
 
 def get_gc_2darr(fdc):
+    """ Makes 2d Matrix of genre frequencies from the 
+        Friend Dictionary of Counts from get_friend_genre_counts """
     outer = [fdc['Person1'], fdc['Person2'],fdc['Person3'],fdc['Person4'],fdc['Person5']]
     return outer
 
 def preprocess_steam(steamPurchaseData, steamListData):
+    """ Preprocesses Steam Data into 2d Matrix """
     friend_genres = create_purchased_genre(steamPurchaseData, steamListData)
     genre_set = get_genre_set(steamListData)
     # print(f"genre_set {genre_set} has {len(genre_set)} items:")
     friend_genre_count = get_friend_genre_counts(genre_set, friend_genres)
     # print(friend_genre_count)
     return get_gc_2darr(friend_genre_count)
+
+###############################
+##  Steam Distance Functions ##
+###############################
+
+def hamming_distance(person1, person2):
+    sum = 0
+    for i in range(len(person1)):
+        sum += (abs(person1[i]-person2[i]))
+    return sum
+
+# TODO: Finish this function, gets called in calc distance
+def cosine_similarity(person1, person2):
+    ## calculated the cosine similarity
+    pass
+
+def jaccard_similarity(person1, person2):
+    """measures similary 
+    larger value means more dissimilar"""
+
+    intersect, union = 0, 0
+    for i in range(len(person1)):
+        intersect += (1 if person1[i]==1 and person2[i]==1 else 0)
+        union += (1 if person1[i]==1 or person2[i]==1 else 0)
     
+    # avoid div by zero, if they both don't have games then 
+    # i guess that means they're similar? 
+    # shouldn't hit this case anyways in the dataset
+    if union == 0:
+        return 1
+    return (round(intersect/union))
+
+def calc_distances(arr):
+    jacc_mat = []
+    ham_mat = []
+    cos_mat = []
+    for person1 in arr:
+        j_m = []
+        h_m = []
+        c_m = []
+        for person2 in arr:
+            j_m.append(jaccard_similarity(person1, person2))
+            h_m.append(hamming_distance(person1, person2))
+            c_m.append(cosine_similarity(person1, person2))
+        jacc_mat.append(j_m)
+        ham_mat.append(h_m)
+        cos_mat.append(c_m)
+
+
+
+    print(f"\n\nJaccard Distances")
+    print(f"------------------")
+    print_2d_matrix(jacc_mat)
+    print(f"\n\nHamming Distances")
+    print(f"------------------")
+    print_2d_matrix(ham_mat)
+    print(f"\n\nCosine Similarity")
+    print(f"------------------")
+    print_2d_matrix(cos_mat)
+    return jacc_mat, ham_mat, cos_mat
+
+#########################
+## Judge Preprocessing ##
+#########################
+
+
+def rank_judge_matrix(j_mat):
+    ranked_mat = []
+    for judge in j_mat:
+        # print(f"judge: {judge}")
+                #   0  1   2   3   4
+        # judge: [ 89, 60, 55, 76, 40 ]
+        sorted_judge = sorted(judge) # descending
+                #   0   1   2   3   4
+        # sorted: [ 89, 76, 60, 55, 40 ]
+        ranked_judge = []
+        for score in judge:
+            i = sorted_judge.index(score)
+            ranked_judge.append(i)
+        # print(f"ranked judge: {ranked_judge}")
+        ranked_mat.append(ranked_judge)
+    return ranked_mat
+
+
+def make_judge_matrix(judgeData):
+    j_mat = [judgeData["Judge1"], judgeData["Judge2"], 
+                judgeData["Judge3"], judgeData["Judge4"],
+                    judgeData["Judge5"], judgeData["Judge6"]]
+    return j_mat
+
+
+##################################
+##       Helper Functions       ##
+##################################
+
+def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
+    # Set size
+    plt.figure(figsize=(12,7))
+    # Set up the heatmap using Seaborn
+    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap)
+
+    # Add a title
+    plt.title(title)
+
+    # Display the heatmap
+    plt.show()
+
+
+def print_2d_matrix(mat):
+    rows = len(mat)
+    print(f"\n[{mat[0]}")
+    for i in range(1,rows-1):
+        print(f" {mat[i]}")
+    print(f" {mat[rows-1]}]\n")
 
 def main():
-    # need nxn matrix for all
+    ## need nxn matrix for all
 
-    ## Iris Stuff
+    #################################
+    #######   Iris Stuff  ###########
+    #################################
     irisData = read_iris(iris_path)
     normed_no_outlier_dict = preprocess_iris(irisData) # has 3 groups not together
     df_all_reconstructed = reconstruct_all(normed_no_outlier_dict) # merged back to 'all' equivalent
-    # print(df_all_reconstructed)
 
-    # Calculate Distances
+    ## Calculate Distances
     data = irisData['all']
     ed = euclidean_distance(data)
     ed2 = euclidean_distance(df_all_reconstructed)
     md = manhatten_distance(data)
     md2 = manhatten_distance(df_all_reconstructed)
+    
+    ## TODO:
+    ## Calculate Chebyshev
+    ## Calculate Minkowski
 
-    # Plot Distances
-    # commented out bc i was working on steam stuff
-
+    #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
+    #   oOo~~>     Plot Heatmaps       <~~oOo
+    #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     # plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
     # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
-    # Should we show data summary?
 
 
-    ## Steam Stuff
+    ## Should we show data summary?
+
+    #################################
+    #######   Steam Stuff ###########
+    #################################
     steamPurchaseData = read_steamPurchase(steam_purch_path)
     steamListData = read_steamList(steam_list_path)
     genre_2d = preprocess_steam(steamPurchaseData, steamListData)
-    # print(genre_2d)
+    print_2d_matrix(genre_2d)
     binary_2d = make_binary_matrix(genre_2d)
-    jac, ham, cos = calc_distance(binary_2d)
+    jac, ham, cos = calc_distances(binary_2d)
 
-    ## Judge Stuff
+
+    ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
+    ##   oOo~~>     Plot Heatmaps       <~~oOo
+    ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
+
+    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Blues")
+    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Blues")
+    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues")
+    
+
+    #########################################
+    #######  Swimming Judge Stuff ###########
+    #########################################
     judgeData = read_judges(judge_path)
+    judge_mat = make_judge_matrix(judgeData["Judges"])
+    print(f" -- Judge Matrix -- ")
+    print_2d_matrix(judge_mat)
+    rj_mat = rank_judge_matrix(judge_mat)
+    print(f" -- Judge Ranked Matrix -- ")
+    print_2d_matrix(rj_mat)
+    
+    
+    ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
+    ##   oOo~~>     Plot Heatmaps       <~~oOo
+    ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
 if __name__ == "__main__":
     main()
