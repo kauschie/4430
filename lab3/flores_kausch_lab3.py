@@ -453,8 +453,18 @@ def hamming_distance(person1, person2):
 
 # TODO: Finish this function, gets called in calc distance
 def cosine_similarity(person1, person2):
-    ## calculated the cosine similarity
-    pass
+    # Convert to numpy array
+    p1 = np.array(person1)
+    p2 = np.array(person2)
+
+    # Calculate the numerator
+    numerator = np.sum(p1 * p2)
+    # Calculate the denominator
+    denominator = np.sqrt(np.sum(p1 ** 2)) * np.sqrt(np.sum(p2 ** 2))
+
+    cos_similarity = round((numerator / denominator), 4)
+
+    return (cos_similarity)
 
 def jaccard_similarity(person1, person2):
     """measures similary 
@@ -472,20 +482,24 @@ def jaccard_similarity(person1, person2):
         return 1
     return (round(intersect/union))
 
-def calc_distances(arr):
+def calc_distances(arr, arr2):
     jacc_mat = []
     ham_mat = []
     cos_mat = []
+    # Jaccard Similarity and Hamming Distance Matrices
     for person1 in arr:
         j_m = []
         h_m = []
-        c_m = []
         for person2 in arr:
             j_m.append(jaccard_similarity(person1, person2))
             h_m.append(hamming_distance(person1, person2))
-            c_m.append(cosine_similarity(person1, person2))
         jacc_mat.append(j_m)
         ham_mat.append(h_m)
+    # Cosine Similarity Matrix
+    for person1 in arr2:
+        c_m = []
+        for person2 in arr2:
+            c_m.append(cosine_similarity(person1, person2))
         cos_mat.append(c_m)
 
 
@@ -535,11 +549,12 @@ def make_judge_matrix(judgeData):
 ##       Helper Functions       ##
 ##################################
 
-def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
+def plot_distance_heatmap(data, title="Heatmap", cmap="Reds", vmin=None, vmax=None):
     # Set size
     plt.figure(figsize=(12,7))
+
     # Set up the heatmap using Seaborn
-    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap)
+    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax)
 
     # Add a title
     plt.title(title)
@@ -598,8 +613,6 @@ def main():
 
     ## Should we show data summary?
 
-    # TODO
-
     #################################
     #######   Steam Stuff ###########
     #################################
@@ -611,16 +624,16 @@ def main():
     binary_2d = make_binary_matrix(genre_2d)
     print("-- Player Genre Count Binary Matrix --")
     print_2d_matrix(binary_2d)
-    jac, ham, cos = calc_distances(binary_2d)
+    jac, ham, cos = calc_distances(binary_2d, genre_2d)
 
 
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
-    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Blues")
-    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Blues")
-    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues")
+    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Reds")
+    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Greens")
+    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues", 0, 1)
     
 
     #########################################
