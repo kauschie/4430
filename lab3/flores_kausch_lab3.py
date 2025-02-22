@@ -503,13 +503,13 @@ def plot_distance_heatmap(data, title="Heatmap", cmap="Reds"):
     # Display the heatmap
     plt.show()
 
-
 def print_2d_matrix(mat):
     rows = len(mat)
     print(f"\n[{mat[0]}")
     for i in range(1,rows-1):
         print(f" {mat[i]}")
     print(f" {mat[rows-1]}]\n")
+
 
 def main():
     ## need nxn matrix for all
@@ -539,8 +539,9 @@ def main():
     # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
 
-
     ## Should we show data summary?
+
+
 
     #################################
     #######   Steam Stuff ###########
@@ -573,10 +574,16 @@ def main():
     print(f" -- Judge Ranked Matrix -- ")
     print_2d_matrix(rj_mat)
     
+    ## swimmer x swimmer really only indicates difference in skill level
+    ## it could be used to indicate bias against a swimmer, however, 
+    ## we don't have anything else to back that up so it would
+    ## just be conjecture
     
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
+
+
 
 if __name__ == "__main__":
     main()
