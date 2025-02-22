@@ -235,6 +235,71 @@ def preprocess_iris(iris_dict):
 
     return normed_no_outlier_dict
 
+def make_binary_matrix(arr2d):
+    binary_mat = []
+    for row in arr2d:
+        new_list = []
+        # print(f"before: {row}")
+        for x in row:
+            if x > 0:
+                new_list.append(1)
+            else:
+                new_list.append(0)
+        # print(f"after: {new_list}")
+        binary_mat.append(new_list)
+    return binary_mat
+
+def hamming_distance(person1, person2):
+    sum = 0
+    for i in range(len(person1)):
+        sum += (abs(person1[i]-person2[i]))
+    return sum
+
+# TODO: Finish this function, gets called in calc distance
+def cosine_similarity(person1, person2):
+    ## calculated the cosine similarity
+    pass
+
+# measures dissimilarity
+# larger value means more dissimilar
+def jaccard_distance(person1, person2):
+    intersect, union = 0, 0
+    for i in range(len(person1)):
+        intersect += (1 if person1[i]==1 and person2[i]==1 else 0)
+        union += (1 if person1[i]==1 or person2[i]==1 else 0)
+    if union == 0:
+        return 0
+    return 1-(intersect/union)
+
+def calc_distance(arr):
+    jacc_mat = []
+    ham_mat = []
+    cos_mat = []
+    for person1 in arr:
+        j_m = []
+        h_m = []
+        c_m = []
+        for person2 in arr:
+            j_m.append(jaccard_distance(person1, person2))
+            h_m.append(hamming_distance(person1, person2))
+            c_m.append(cosine_similarity(person1, person2))
+        jacc_mat.append(j_m)
+        ham_mat.append(h_m)
+        cos_mat.append(c_m)
+
+
+
+    print(f"\n\nJaccard Distances")
+    print(f"------------------")
+    print(jacc_mat)
+    print(f"\n\nHamming Distances")
+    print(f"------------------")
+    print(ham_mat)
+    print(f"\n\nCosine Similarity")
+    print(f"------------------")
+    print(cos_mat)
+    return jacc_mat, ham_mat, cos_mat
+
 def reconstruct_all(normed_no_outlier_dict):
     """
     Reconstructs df['all'] by concatenating g1, g2, and g3.
@@ -378,17 +443,17 @@ def main():
     df_all_reconstructed = reconstruct_all(normed_no_outlier_dict) # merged back to 'all' equivalent
     # print(df_all_reconstructed)
 
-    # Calculate and Plot Distances
+    # Calculate Distances
     data = irisData['all']
     ed = euclidean_distance(data)
     ed2 = euclidean_distance(df_all_reconstructed)
     md = manhatten_distance(data)
-    print(md)
     md2 = manhatten_distance(df_all_reconstructed)
-    print(md2)
-    # print(ed)
+
+    # Plot Distances
+    # commented out bc i was working on steam stuff
+
     # plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-    # print(f"\n\n{ed2}")
     # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
     
     # Should we show data summary?
@@ -397,10 +462,10 @@ def main():
     ## Steam Stuff
     steamPurchaseData = read_steamPurchase(steam_purch_path)
     steamListData = read_steamList(steam_list_path)
-    # organized as 
     genre_2d = preprocess_steam(steamPurchaseData, steamListData)
-    print(genre_2d)
-
+    # print(genre_2d)
+    binary_2d = make_binary_matrix(genre_2d)
+    jac, ham, cos = calc_distance(binary_2d)
 
     ## Judge Stuff
     judgeData = read_judges(judge_path)
