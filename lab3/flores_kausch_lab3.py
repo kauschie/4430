@@ -273,6 +273,56 @@ def reconstruct_all(normed_no_outlier_dict):
 ##  Iris Distance Functions  ##
 ###############################
 
+def minkowski_distance(data, p=3):
+    # Number of data points
+    n = len(data['Sepal length'])
+    
+    # Create an array of shape (n, 4) where each row represents one flower's features
+    features = np.column_stack((
+        data['Sepal length'],
+        data['Sepal width'],
+        data['Petal length'],
+        data['Petal width']
+    ))
+    
+    # Initialize an empty distance matrix
+    distance_matrix = np.zeros((n, n))
+    
+    # Compute pairwise Manhatten distances
+    for i in range(n):
+        for j in range(i, n):
+            diff = abs(features[i] - features[j])
+            dist = np.sum(diff**p)**(1 / p)
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist
+    
+    return distance_matrix
+
+def chebyshev_distance(data):
+    # Number of data points
+    n = len(data['Sepal length'])
+    
+    # Create an array of shape (n, 4) where each row represents one flower's features
+    features = np.column_stack((
+        data['Sepal length'],
+        data['Sepal width'],
+        data['Petal length'],
+        data['Petal width']
+    ))
+    
+    # Initialize an empty distance matrix
+    distance_matrix = np.zeros((n, n))
+    
+    # Compute pairwise Manhatten distances
+    for i in range(n):
+        for j in range(i, n):
+            diff = abs(features[i] - features[j])
+            dist = max(diff)
+            distance_matrix[i, j] = dist
+            distance_matrix[j, i] = dist
+    
+    return distance_matrix
+
 def manhatten_distance(data):
     # Number of data points
     n = len(data['Sepal length'])
@@ -284,8 +334,6 @@ def manhatten_distance(data):
         data['Petal length'],
         data['Petal width']
     ))
-
-    # print(features)
     
     # Initialize an empty distance matrix
     distance_matrix = np.zeros((n, n))
@@ -294,11 +342,9 @@ def manhatten_distance(data):
     for i in range(n):
         for j in range(i, n):
             diff = features[i] - features[j]
-            # print(f"diff: {diff}")
             dist = np.sum(np.abs(diff))
-            # print(f"dist: {dist}")
             distance_matrix[i, j] = dist
-            distance_matrix[j, i] = dist  # The matrix is symmetric
+            distance_matrix[j, i] = dist
     
     return distance_matrix
 
@@ -313,8 +359,6 @@ def euclidean_distance(data):
         data['Petal length'],
         data['Petal width']
     ))
-
-    # print(features)
     
     # Initialize an empty distance matrix
     distance_matrix = np.zeros((n, n))
@@ -325,7 +369,7 @@ def euclidean_distance(data):
             diff = features[i] - features[j]
             dist = np.sqrt(np.sum(diff**2))
             distance_matrix[i, j] = dist
-            distance_matrix[j, i] = dist  # The matrix is symmetric
+            distance_matrix[j, i] = dist
     
     return distance_matrix
 
@@ -523,25 +567,38 @@ def main():
 
     ## Calculate Distances
     data = irisData['all']
-    ed = euclidean_distance(data)
-    ed2 = euclidean_distance(df_all_reconstructed)
-    md = manhatten_distance(data)
-    md2 = manhatten_distance(df_all_reconstructed)
+
+    # Euclidean
+    euc_dist = euclidean_distance(data)
+    euc_dist2 = euclidean_distance(df_all_reconstructed)
+
+    # Manhattan
+    man_dist = manhatten_distance(data)
+    man_dist2 = manhatten_distance(df_all_reconstructed)
     
-    ## TODO:
-    ## Calculate Chebyshev
-    ## Calculate Minkowski
+    # Chebyshev
+    cheb_dist = chebyshev_distance(data)
+    cheb_dist2 = chebyshev_distance(df_all_reconstructed)
+
+    # Minkowski
+    minkow_dist = minkowski_distance(data, 3)
+    minkow_dist2 = minkowski_distance(df_all_reconstructed, 3)
 
     #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     #   oOo~~>     Plot Heatmaps       <~~oOo
     #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
-    # plot_distance_heatmap(ed, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-    # plot_distance_heatmap(ed2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
-    
+    # plot_distance_heatmap(euc_dist, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
+    # plot_distance_heatmap(euc_dist2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
+    # plot_distance_heatmap(man_dist, "Iris Manhattan Distance Heatmap (non normalized with outliers)", "Reds")
+    # plot_distance_heatmap(man_dist2, "Iris Manhattan Distance Heatmap (norm, no outlier)", "Reds")
+    # plot_distance_heatmap(cheb_dist, "Iris Chebyshev Distance Heatmap (non normalized with outliers)", "Purples")
+    # plot_distance_heatmap(cheb_dist2, "Iris Chebyshev Distance Heatmap (norm, no outlier)", "Purples")
+    # plot_distance_heatmap(minkow_dist, "Iris Minkowski Distance Heatmap (non normalized with outliers)", "Oranges")
+    # plot_distance_heatmap(minkow_dist2, "Iris Minkowski Distance Heatmap (norm, no outlier)", "Oranges")
 
     ## Should we show data summary?
 
-
+    # TODO
 
     #################################
     #######   Steam Stuff ###########
@@ -549,8 +606,11 @@ def main():
     steamPurchaseData = read_steamPurchase(steam_purch_path)
     steamListData = read_steamList(steam_list_path)
     genre_2d = preprocess_steam(steamPurchaseData, steamListData)
+    print("\n-- Player Genre Count Matrix --")
     print_2d_matrix(genre_2d)
     binary_2d = make_binary_matrix(genre_2d)
+    print("-- Player Genre Count Binary Matrix --")
+    print_2d_matrix(binary_2d)
     jac, ham, cos = calc_distances(binary_2d)
 
 
