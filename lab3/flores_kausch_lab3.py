@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import math
 import csv
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
 matplotlib.use('TkAgg')
 
 steam_purch_path = 'MeasurementsExamples_SteamPurchase.csv'
@@ -550,23 +550,65 @@ def make_judge_matrix(judgeData):
 def pearson_correlation_coefficient(data, rowvar):
     # Convert the input to a NumPy array (if it isn't one already)
     matrix = np.array(data)
+    print(matrix)
     
     # np.corrcoef, with the default rowvar=True, computes the correlation among rows
     corr_matrix = np.corrcoef(matrix, rowvar=rowvar)
     
-    return corr_matrix
+    # when rowvar == True, it's judge to judge
+    if rowvar == True:
+        names = [f"Judge{i+1}" for i in range(len(data))]
+    else: # swimmers
+        names = [f"Swimmer{i+1}" for i in range(len(data[0]))]
+
+    # return corr_matrix
+    return pd.DataFrame(corr_matrix, 
+                        columns=names, 
+                        index=names)
+
+
+def compute_spearman_matrix(scores, axis="Judge"):
+    """
+    Computes the Spearman rank correlation matrix for an n × m score matrix.
+    
+    :param scores: A NumPy array of shape (n_judges, m_swimmers).
+    :return: A DataFrame of Spearman correlations (n × n matrix).
+    """
+    n_judges = scores.shape[0]
+    spearman_matrix = np.ones((n_judges, n_judges))  # Initialize with 1s (self-correlation)
+
+    for i in range(n_judges):
+        for j in range(i + 1, n_judges):  # Only compute upper triangle
+            correlation, _ = spearmanr(scores[i], scores[j])  # Spearman correlation
+            spearman_matrix[i, j] = correlation
+            spearman_matrix[j, i] = correlation  # Symmetric matrix
+
+    if axis == "Judge":
+        names = [f"Judge{i+1}" for i in range(n_judges)]
+    elif axis == "Swimmer":
+        names = [f"Swimmer{i+1}" for i in range(n_judges)]
+    else:
+        print("error in nameing convention")
+
+    return pd.DataFrame(spearman_matrix, 
+                        columns=names, 
+                        index=names)
+
 
 
 ##################################
 ##       Helper Functions       ##
 ##################################
 
-def plot_distance_heatmap(data, title="Heatmap", cmap="Reds", vmin=None, vmax=None):
+def plot_distance_heatmap(data, title="Heatmap", cmap="Reds", vmin=None, vmax=None, titles=None):
     # Set size
     plt.figure(figsize=(12,7))
 
     # Set up the heatmap using Seaborn
-    sns.heatmap(data, annot=False, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax)
+    ax = sns.heatmap(data, annot=True, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.xaxis.set_ticks_position("top")
+    ax.xaxis.set_label_position("top")
+    ax.tick_params(axis="x", rotation=45)  # Rotate x-axis labels for readability
 
     # Add a title
     plt.title(title)
@@ -655,25 +697,41 @@ def main():
     judge_mat = make_judge_matrix(judgeData["Judges"])
     print(f" -- Judge Matrix -- ")
     print_2d_matrix(judge_mat)
-    rj_mat = rank_judge_matrix(judge_mat)
-    print(f" -- Judge Ranked Matrix -- ")
-    print_2d_matrix(rj_mat)
+    # rj_mat = rank_judge_matrix(judge_mat)
+    # print(f" -- Judge Ranked Matrix -- ")
+    # print_2d_matrix(rj_mat)
 
     # Pearson Correlation Coefficient
     pcc_mat_judges = pearson_correlation_coefficient(judge_mat, True)
     pcc_mat_swimmers = pearson_correlation_coefficient(judge_mat, False)
-    
-    ## swimmer x swimmer really only indicates difference in skill level
-    ## it could be used to indicate bias against a swimmer, however, 
-    ## we don't have anything else to back that up so it would
-    ## just be conjecture
+    print("pcc_mat_judges")
+    print(pcc_mat_judges)
+    print("pcc_mat_swimmers")
+    print(pcc_mat_swimmers)
+
+    judge_mat = np.array(judge_mat)
+    swimmer_mat = judge_mat.T
+    scc_mat_judges = compute_spearman_matrix(judge_mat)
+    scc_mat_swimmers =  compute_spearman_matrix(swimmer_mat, axis="Swimmer")
+
+    print("scc_mat_judges")
+    print(scc_mat_judges)
+    print("scc_mat_swimmers")
+    print(scc_mat_swimmers)
+
     
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
-    plot_distance_heatmap(pcc_mat_judges, "Pearson Correlation Coefficient Heatmap (Judge Scoring)", "managua", -1, 1)
-    plot_distance_heatmap(pcc_mat_swimmers, "Pearson Correlation Coefficient Heatmap (Swimmer Scores)", "RdYlBu", -1, 1)
+    plot_distance_heatmap(pcc_mat_judges, "Judge v Judge PCC", "coolwarm", -1, 1)
+    plot_distance_heatmap(scc_mat_judges, "Judge v Judge SCC", "coolwarm", -1, 1)
+    plot_distance_heatmap(pcc_mat_swimmers, "Swimmer v Swimmer PCC", "coolwarm", -1, 1)
+    plot_distance_heatmap(scc_mat_swimmers, "Swimmer v Swimmer SCC", "coolwarm", -1, 1)
+    # plot_distance_heatmap(pcc_mat_judges, "Pearson Correlation Coefficient Heatmap (Judge Scoring)")
+    # plot_distance_heatmap(pcc_mat_swimmers, "Pearson Correlation Coefficient Heatmap (Swimmer Scores)")
+    # plot_distance_heatmap(pcc_mat_judges, "Spearman's Rank Correlation Heatmap (Judge Scoring)")
+    # plot_distance_heatmap(pcc_mat_swimmers, "Spearman's Rank Correlation Heatmap (Swimmer Scores)")
 
 
 if __name__ == "__main__":
