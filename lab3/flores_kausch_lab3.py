@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import csv
+import math
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
@@ -172,11 +173,12 @@ def remove_outliers_iqr(group):
     Returns the cleaned group and the total number of removed rows.
     """
     df = pd.DataFrame(group)  # Convert dictionary to DataFrame
+    # print(f"df: {df}")
     original_size = len(df)  # Store the original number of rows
 
     # Compute IQR bounds for each feature (excluding the 'Species' column)
     lower_bounds, upper_bounds = {}, {}
-    for col in df.columns[:-1]:  # Ignore 'Species' column
+    for col in df.columns:  # Ignore 'Species' column
         Q1 = df[col].quantile(0.25)  # 25th percentile
         Q3 = df[col].quantile(0.75)  # 75th percentile
         IQR = Q3 - Q1  # Interquartile range
@@ -184,7 +186,7 @@ def remove_outliers_iqr(group):
         upper_bounds[col] = Q3 + 1.5 * IQR
 
     # Create a mask that identifies entire rows to remove if ANY feature is an outlier
-    mask = (df.iloc[:, :-1] < pd.Series(lower_bounds)) | (df.iloc[:, :-1] > pd.Series(upper_bounds))
+    mask = (df < pd.Series(lower_bounds)) | (df > pd.Series(upper_bounds))
     rows_to_remove = mask.any(axis=1)  # Identify rows where ANY feature is an outlier
 
     # Count total outliers removed
@@ -192,6 +194,11 @@ def remove_outliers_iqr(group):
 
     # Remove entire rows where any feature was an outlier
     df_cleaned = df[~rows_to_remove].reset_index(drop=True)
+
+    # print data summary
+    print("Data Summary:")
+    data_summary = df_cleaned.agg(['mean', 'std'])
+    print(data_summary)
 
     return df_cleaned.to_dict(orient="list"), removed_rows  # Return cleaned data + count of removed rows
 
@@ -288,7 +295,7 @@ def minkowski_distance(data, p=3):
     # Initialize an empty distance matrix
     distance_matrix = np.zeros((n, n))
     
-    # Compute pairwise Manhatten distances
+    # Compute pairwise diff then use to calc minkowski
     for i in range(n):
         for j in range(i, n):
             diff = abs(features[i] - features[j])
@@ -313,7 +320,7 @@ def chebyshev_distance(data):
     # Initialize an empty distance matrix
     distance_matrix = np.zeros((n, n))
     
-    # Compute pairwise Manhatten distances
+    # Compute pairwise difference then take max feature
     for i in range(n):
         for j in range(i, n):
             diff = abs(features[i] - features[j])
@@ -480,7 +487,9 @@ def jaccard_similarity(person1, person2):
     # shouldn't hit this case anyways in the dataset
     if union == 0:
         return 1
-    return (round(intersect/union))
+    # print(f"intersect: {intersect}")
+    # print(f"union: {union}")
+    return (round((intersect/union),2))
 
 def calc_distances(arr, arr2):
     jacc_mat = []
@@ -600,12 +609,12 @@ def compute_spearman_matrix(scores, axis="Judge"):
 ##       Helper Functions       ##
 ##################################
 
-def plot_distance_heatmap(data, title="Heatmap", cmap="Reds", vmin=None, vmax=None, titles=None):
+def plot_distance_heatmap(data, title="Heatmap", cmap="Reds", vmin=None, vmax=None, titles=None, annot=False):
     # Set size
     plt.figure(figsize=(12,7))
 
     # Set up the heatmap using Seaborn
-    ax = sns.heatmap(data, annot=True, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax)
+    ax = sns.heatmap(data, annot=annot, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax)
     ax.xaxis.set_ticks_position("top")
     ax.xaxis.set_label_position("top")
     ax.tick_params(axis="x", rotation=45)  # Rotate x-axis labels for readability
@@ -657,13 +666,13 @@ def main():
     #   oOo~~>     Plot Heatmaps       <~~oOo
     #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     # plot_distance_heatmap(euc_dist, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-    # plot_distance_heatmap(euc_dist2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "Blues")
+    plot_distance_heatmap(euc_dist2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "jet")
     # plot_distance_heatmap(man_dist, "Iris Manhattan Distance Heatmap (non normalized with outliers)", "Reds")
-    # plot_distance_heatmap(man_dist2, "Iris Manhattan Distance Heatmap (norm, no outlier)", "Reds")
+    plot_distance_heatmap(man_dist2, "Iris Manhattan Distance Heatmap (norm, no outlier)", "jet")
     # plot_distance_heatmap(cheb_dist, "Iris Chebyshev Distance Heatmap (non normalized with outliers)", "Purples")
-    # plot_distance_heatmap(cheb_dist2, "Iris Chebyshev Distance Heatmap (norm, no outlier)", "Purples")
+    plot_distance_heatmap(cheb_dist2, "Iris Chebyshev Distance Heatmap (norm, no outlier)", "jet")
     # plot_distance_heatmap(minkow_dist, "Iris Minkowski Distance Heatmap (non normalized with outliers)", "Oranges")
-    # plot_distance_heatmap(minkow_dist2, "Iris Minkowski Distance Heatmap (norm, no outlier)", "Oranges")
+    plot_distance_heatmap(minkow_dist2, "Iris Minkowski Distance Heatmap (norm, no outlier)", "jet")
 
     ## Should we show data summary?
 
@@ -685,9 +694,12 @@ def main():
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
-    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Reds")
-    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Greens")
-    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues", 0, 1)
+    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Reds", annot=True)
+    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Greens", annot=True)
+    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues", 0, 1, annot=True)
+    plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "jet", annot=True)
+    plot_distance_heatmap(ham, "Hamming Distance Heatmap", "jet", annot=True)
+    plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "jet", 0, 1, annot=True)
     
 
     #########################################
@@ -704,35 +716,30 @@ def main():
     # Pearson Correlation Coefficient
     pcc_mat_judges = pearson_correlation_coefficient(judge_mat, True)
     pcc_mat_swimmers = pearson_correlation_coefficient(judge_mat, False)
-    print("pcc_mat_judges")
-    print(pcc_mat_judges)
-    print("pcc_mat_swimmers")
-    print(pcc_mat_swimmers)
+    # print("pcc_mat_judges")
+    # print(pcc_mat_judges)
+    # print("pcc_mat_swimmers")
+    # print(pcc_mat_swimmers)
 
     judge_mat = np.array(judge_mat)
     swimmer_mat = judge_mat.T
     scc_mat_judges = compute_spearman_matrix(judge_mat)
     scc_mat_swimmers =  compute_spearman_matrix(swimmer_mat, axis="Swimmer")
 
-    print("scc_mat_judges")
-    print(scc_mat_judges)
-    print("scc_mat_swimmers")
-    print(scc_mat_swimmers)
+    # print("scc_mat_judges")
+    # print(scc_mat_judges)
+    # print("scc_mat_swimmers")
+    # print(scc_mat_swimmers)
 
     
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
-    plot_distance_heatmap(pcc_mat_judges, "Judge v Judge PCC", "coolwarm", -1, 1)
-    plot_distance_heatmap(scc_mat_judges, "Judge v Judge SCC", "coolwarm", -1, 1)
-    plot_distance_heatmap(pcc_mat_swimmers, "Swimmer v Swimmer PCC", "coolwarm", -1, 1)
-    plot_distance_heatmap(scc_mat_swimmers, "Swimmer v Swimmer SCC", "coolwarm", -1, 1)
-    # plot_distance_heatmap(pcc_mat_judges, "Pearson Correlation Coefficient Heatmap (Judge Scoring)")
-    # plot_distance_heatmap(pcc_mat_swimmers, "Pearson Correlation Coefficient Heatmap (Swimmer Scores)")
-    # plot_distance_heatmap(pcc_mat_judges, "Spearman's Rank Correlation Heatmap (Judge Scoring)")
-    # plot_distance_heatmap(pcc_mat_swimmers, "Spearman's Rank Correlation Heatmap (Swimmer Scores)")
-
+    plot_distance_heatmap(pcc_mat_judges, "Judge v Judge PCC", "jet", -1, 1, annot=True)
+    plot_distance_heatmap(scc_mat_judges, "Judge v Judge SCC", "jet", -1, 1, annot=True)
+    plot_distance_heatmap(pcc_mat_swimmers, "Swimmer v Swimmer PCC", "jet", -1, 1, annot=True)
+    plot_distance_heatmap(scc_mat_swimmers, "Swimmer v Swimmer SCC", "jet", -1, 1, annot=True)
 
 if __name__ == "__main__":
     main()
