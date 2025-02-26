@@ -196,9 +196,9 @@ def remove_outliers_iqr(group):
     df_cleaned = df[~rows_to_remove].reset_index(drop=True)
 
     # print data summary
-    print("Data Summary:")
-    data_summary = df_cleaned.agg(['mean', 'std'])
-    print(data_summary)
+    # print("Data Summary:")
+    # data_summary = df_cleaned.agg(['mean', 'std'])
+    # print(data_summary)
 
     return df_cleaned.to_dict(orient="list"), removed_rows  # Return cleaned data + count of removed rows
 
@@ -225,10 +225,10 @@ def preprocess_iris(iris_dict):
         new_g_no_outliers[k] = cleaned_data
         outlier_counts[k] = total_outliers
 
-    # Print outlier summary
-    print("\n📊 Outlier Removal Summary:")
-    for group, count in outlier_counts.items():
-        print(f"Group {group}: {count} rows removed")
+    # # Print outlier summary
+    # print("\n📊 Outlier Removal Summary:")
+    # for group, count in outlier_counts.items():
+    #     print(f"Group {group}: {count} rows removed")
 
     # Step 3: Compute feature-wise min/max across all cleaned groups
     all_data_no_outliers = pd.concat([pd.DataFrame(v) for v in new_g_no_outliers.values()])
@@ -512,15 +512,15 @@ def calc_distances(arr, arr2):
         cos_mat.append(c_m)
 
     # Print results
-    print(f"\n\nJaccard Distances")
-    print(f"------------------")
-    print_2d_matrix(jacc_mat)
-    print(f"\n\nHamming Distances")
-    print(f"------------------")
-    print_2d_matrix(ham_mat)
-    print(f"\n\nCosine Similarity")
-    print(f"------------------")
-    print_2d_matrix(cos_mat)
+    # print(f"\n\nJaccard Distances")
+    # print(f"------------------")
+    # print_2d_matrix(jacc_mat)
+    # print(f"\n\nHamming Distances")
+    # print(f"------------------")
+    # print_2d_matrix(ham_mat)
+    # print(f"\n\nCosine Similarity")
+    # print(f"------------------")
+    # print_2d_matrix(cos_mat)
     return jacc_mat, ham_mat, cos_mat
 
 #########################
@@ -559,7 +559,7 @@ def make_judge_matrix(judgeData):
 def pearson_correlation_coefficient(data, rowvar):
     # Convert the input to a NumPy array (if it isn't one already)
     matrix = np.array(data)
-    print(matrix)
+    # print(matrix)
     
     # np.corrcoef, with the default rowvar=True, computes the correlation among rows
     corr_matrix = np.corrcoef(matrix, rowvar=rowvar)
@@ -634,7 +634,6 @@ def print_2d_matrix(mat):
 
 
 def main():
-    ## need nxn matrix for all
 
     #################################
     #######   Iris Stuff  ###########
@@ -661,18 +660,22 @@ def main():
     # Minkowski
     minkow_dist = minkowski_distance(data, 3)
     minkow_dist2 = minkowski_distance(df_all_reconstructed, 3)
+    minkow_dist3 = minkowski_distance(data, 4)
+    minkow_dist4 = minkowski_distance(df_all_reconstructed, 4)
 
     #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     #   oOo~~>     Plot Heatmaps       <~~oOo
     #   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
-    # plot_distance_heatmap(euc_dist, "Iris Euclidean Distance Heatmap (non normalized with outliers)", "Blues")
-    plot_distance_heatmap(euc_dist2, "Iris Euclidean Distance Heatmap (norm, no outlier)", "jet")
-    # plot_distance_heatmap(man_dist, "Iris Manhattan Distance Heatmap (non normalized with outliers)", "Reds")
-    plot_distance_heatmap(man_dist2, "Iris Manhattan Distance Heatmap (norm, no outlier)", "jet")
-    # plot_distance_heatmap(cheb_dist, "Iris Chebyshev Distance Heatmap (non normalized with outliers)", "Purples")
-    plot_distance_heatmap(cheb_dist2, "Iris Chebyshev Distance Heatmap (norm, no outlier)", "jet")
-    # plot_distance_heatmap(minkow_dist, "Iris Minkowski Distance Heatmap (non normalized with outliers)", "Oranges")
-    plot_distance_heatmap(minkow_dist2, "Iris Minkowski Distance Heatmap (norm, no outlier)", "jet")
+    plot_distance_heatmap(euc_dist, "Iris Euclidean Distance Heatmap (non normalized)", "jet")
+    plot_distance_heatmap(euc_dist2, "Iris Euclidean Distance Heatmap (normalized)", "jet")
+    plot_distance_heatmap(man_dist, "Iris Manhattan Distance Heatmap (non normalized)", "jet")
+    plot_distance_heatmap(man_dist2, "Iris Manhattan Distance Heatmap (normalized)", "jet")
+    plot_distance_heatmap(cheb_dist, "Iris Chebyshev Distance Heatmap (non normalized)", "jet")
+    plot_distance_heatmap(cheb_dist2, "Iris Chebyshev Distance Heatmap (normalized)", "jet")
+    plot_distance_heatmap(minkow_dist, "Iris Minkowski Distance Heatmap (non normalized)", "jet")
+    plot_distance_heatmap(minkow_dist2, "Iris Minkowski Distance Heatmap (normalized)", "jet")
+    plot_distance_heatmap(minkow_dist3, "Iris Minkowski Distance Heatmap P=4 (non normalized)", "jet")
+    plot_distance_heatmap(minkow_dist4, "Iris Minkowski Distance Heatmap P=4 (normalized)", "jet")
 
     ## Should we show data summary?
 
@@ -682,11 +685,11 @@ def main():
     steamPurchaseData = read_steamPurchase(steam_purch_path)
     steamListData = read_steamList(steam_list_path)
     genre_2d = preprocess_steam(steamPurchaseData, steamListData)
-    print("\n-- Player Genre Count Matrix --")
-    print_2d_matrix(genre_2d)
+    # print("\n-- Player Genre Count Matrix --")
+    # print_2d_matrix(genre_2d)
     binary_2d = make_binary_matrix(genre_2d)
-    print("-- Player Genre Count Binary Matrix --")
-    print_2d_matrix(binary_2d)
+    # print("-- Player Genre Count Binary Matrix --")
+    # print_2d_matrix(binary_2d)
     jac, ham, cos = calc_distances(binary_2d, genre_2d)
 
 
@@ -694,11 +697,8 @@ def main():
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
 
-    # plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "Reds", annot=True)
-    # plot_distance_heatmap(ham, "Hamming Distance Heatmap", "Greens", annot=True)
-    # plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "Blues", 0, 1, annot=True)
-    plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "jet", annot=True)
-    plot_distance_heatmap(ham, "Hamming Distance Heatmap", "jet", annot=True)
+    plot_distance_heatmap(jac, "Jaccard Similarity Heatmap", "jet", 0, annot=True)
+    plot_distance_heatmap(ham, "Hamming Distance Heatmap", "jet_r", 0, 6, annot=True)
     plot_distance_heatmap(cos, "Cosine Similarity Heatmap", "jet", 0, 1, annot=True)
     
 
@@ -707,35 +707,22 @@ def main():
     #########################################
     judgeData = read_judges(judge_path)
     judge_mat = make_judge_matrix(judgeData["Judges"])
-    print(f" -- Judge Matrix -- ")
-    print_2d_matrix(judge_mat)
-    # rj_mat = rank_judge_matrix(judge_mat)
-    # print(f" -- Judge Ranked Matrix -- ")
-    # print_2d_matrix(rj_mat)
+    # print(f" -- Judge Matrix -- ")
+    # print_2d_matrix(judge_mat)
 
-    # Pearson Correlation Coefficient
     pcc_mat_judges = pearson_correlation_coefficient(judge_mat, True)
     pcc_mat_swimmers = pearson_correlation_coefficient(judge_mat, False)
-    # print("pcc_mat_judges")
-    # print(pcc_mat_judges)
-    # print("pcc_mat_swimmers")
-    # print(pcc_mat_swimmers)
 
     judge_mat = np.array(judge_mat)
     swimmer_mat = judge_mat.T
     scc_mat_judges = compute_spearman_matrix(judge_mat)
     scc_mat_swimmers =  compute_spearman_matrix(swimmer_mat, axis="Swimmer")
 
-    # print("scc_mat_judges")
-    # print(scc_mat_judges)
-    # print("scc_mat_swimmers")
-    # print(scc_mat_swimmers)
-
     
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
     ##   oOo~~>     Plot Heatmaps       <~~oOo
     ##   oOoOooOooOoOoOoOooOooOoOoOoOooOooOoOo
-
+# 
     plot_distance_heatmap(pcc_mat_judges, "Judge v Judge PCC", "jet", -1, 1, annot=True)
     plot_distance_heatmap(scc_mat_judges, "Judge v Judge SCC", "jet", -1, 1, annot=True)
     plot_distance_heatmap(pcc_mat_swimmers, "Swimmer v Swimmer PCC", "jet", -1, 1, annot=True)
