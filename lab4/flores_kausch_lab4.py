@@ -2,7 +2,10 @@ import dcor
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('TkAgg')
+
 
 ##################################
 ##   Load data from CSV Files   ##
@@ -44,6 +47,44 @@ def compute_distance_correlation(df):
 
     return distance_corr_matrix.astype(float)
 
+
+
+def plot_3d_scatter(df):
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Scatter plot
+    ax.scatter(df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], c='b', marker='o')
+
+    # Labels
+    ax.set_xlabel(df.columns[0])
+    ax.set_ylabel(df.columns[1])
+    ax.set_zlabel(df.columns[2])
+    ax.set_title('3D Scatter Plot of Normalized Features')
+
+    plt.show()
+
+
+def plot_2d_scatter(df, x_col, y_col):
+    """
+    Plots a 2D scatter plot for two selected columns from the DataFrame.
+    
+    Parameters:
+    df (pd.DataFrame): The normalized dataset
+    x_col (str): Name of the column for the x-axis
+    y_col (str): Name of the column for the y-axis
+    """
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df[x_col], df[y_col], c='b', alpha=0.6, edgecolors='k')
+
+    plt.xlabel(x_col)
+    plt.ylabel(y_col)
+    plt.title(f'2D Scatter Plot: {x_col} vs {y_col}')
+    plt.grid(True)
+    
+    plt.show()
+
+
 ##################################
 ##       Helper Functions       ##
 ##################################
@@ -67,6 +108,11 @@ def plot_distance_heatmap(data, title="Heatmap", colorbar_title="Correlation", c
     # Display the heatmap
     plt.show()
 
+def normalize_df(df):
+    df_norm = (df - df.min()) / (df.max() - df.min())
+    return df_norm
+
+
 def main():
     """Main execution function."""
     army_attribute_path = "army_attribute_data.csv"
@@ -87,6 +133,15 @@ def main():
 
     else:
         print("Failed to load data.")
+
+
+    # min/max normalization on data set
+    df_norm = normalize_df(df)
+    plot_3d_scatter(df_norm)        # viewed all 3 together 3d
+    plot_2d_scatter(df, "feature 1", "feature 2") # can see positive trend in data
+    plot_2d_scatter(df, "feature 1", "feature 3") # can see their linear relationship creates a line
+    plot_2d_scatter(df, "feature 2", "feature 3") # can see positive trend in data
+
 
     
 
