@@ -2,10 +2,10 @@ import dcor
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import scipy.stats as stats
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
-
 
 ##################################
 ##   Load data from CSV Files   ##
@@ -21,6 +21,17 @@ def load_army_data(file_path):
         print(f"Error loading file: {e}")
         return None
     
+def load_grape_data(file_path):
+    try:
+        df = pd.read_csv(file_path, header=None)
+        df = df.T
+        df.columns = ["diameter", "type"]
+        df["diameter"] = df["diameter"].astype(float)
+        df["type"] = df["type"].astype(int)
+        return df
+    except Exception as e:
+        print(f"error loading file: {e}")
+        return None
 ##########################################
 ##   Statistical Dependency Functions   ##
 ##########################################
@@ -48,6 +59,33 @@ def compute_distance_correlation(df):
     return distance_corr_matrix.astype(float)
 
 
+
+def confidence_interval(df: pd.DataFrame, column: str, confidence: float = 0.95):
+    """
+    Computes the confidence interval for a given column in a Pandas DataFrame.
+    
+    Parameters:
+        df (pd.DataFrame): The DataFrame containing the data.
+        column (str): The name of the column for which to compute the confidence interval.
+        confidence (float): The confidence level (default is 95%).
+        
+    Returns:
+        tuple: The lower and upper bounds of the confidence interval.
+    """
+    data = df[column].dropna().values  # Drop NaN values
+    mean = np.mean(data)
+    stdev = np.std(data)
+    std_err = stats.sem(data)  # Standard error of the mean
+    df = len(data) - 1  # Degrees of freedom
+    
+    # Use t-distribution for small sample sizes, normal distribution for large samples
+    ci = stats.t.interval(confidence, df, loc=mean, scale=std_err)
+    
+
+    return {"mean":mean, "stdev":stdev, "ci":ci}
+
+
+#### Plotting Functions
 
 def plot_3d_scatter(df):
     fig = plt.figure(figsize=(8, 6))
@@ -112,6 +150,11 @@ def normalize_df(df):
     df_norm = (df - df.min()) / (df.max() - df.min())
     return df_norm
 
+def random_without_replacement():
+    pass
+
+def random_with_replacement():
+    pass
 
 def main():
     """Main execution function."""
@@ -137,13 +180,24 @@ def main():
 
     # min/max normalization on data set
     df_norm = normalize_df(df)
+    print(df_norm)
     plot_3d_scatter(df_norm)        # viewed all 3 together 3d
     plot_2d_scatter(df, "feature 1", "feature 2") # can see positive trend in data
     plot_2d_scatter(df, "feature 1", "feature 3") # can see their linear relationship creates a line
     plot_2d_scatter(df, "feature 2", "feature 3") # can see positive trend in data
 
 
-    
+
+    ##########
+    ## confidence interval
+    ##########
+
+    # Lab - stitistical tools dataset 
+    df = load_grape_data("./StatisticalTools_grape_data.txt")
+    stats = confidence_interval(df, "diameter")
+    print(f"Mean: {stats['mean']}")
+    print(f"Stdev: {stats['stdev']}")
+    print(f"confidence interval: {stats['ci'][0]}-{stats['ci'][1]}")
 
 if __name__ == "__main__":
     main()
