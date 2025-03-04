@@ -47,6 +47,30 @@ def z_test(sample, pop_mean, pop_sigma):
 
     return z_stat, p_value
 
+# individual z-tests
+
+def single_observation_z_test(x, mu_0, sigma, alpha=0.05):
+    """
+    Check if a single observation x differs significantly
+    from a hypothesized normal distribution (mean=mu_0, sd=sigma).
+
+    Returns:
+        z_value: float
+        p_value: float
+        significant: bool (True if p < alpha)
+    """
+    # Compute z
+    z_value = (x - mu_0) / sigma
+    
+    # Two-sided p-value
+    p_value = 2 * (1 - norm.cdf(abs(z_value)))
+    
+    # Compare p-value with significance level alpha
+    significant = (p_value < alpha)
+    
+    return z_value, p_value, significant
+
+
 
 def plot_multiple_samples_vs_hypothesized_mean(samples, box_names, hypoth_mean):
     """
@@ -197,28 +221,6 @@ plt.show()
 
 
 
-# individual z-tests
-
-def single_observation_z_test(x, mu_0, sigma, alpha=0.05):
-    """
-    Check if a single observation x differs significantly
-    from a hypothesized normal distribution (mean=mu_0, sd=sigma).
-
-    Returns:
-        z_value: float
-        p_value: float
-        significant: bool (True if p < alpha)
-    """
-    # Compute z
-    z_value = (x - mu_0) / sigma
-    
-    # Two-sided p-value
-    p_value = 2 * (1 - norm.cdf(abs(z_value)))
-    
-    # Compare p-value with significance level alpha
-    significant = (p_value < alpha)
-    
-    return z_value, p_value, significant
 
 single_z = []
 single_z_p = []
