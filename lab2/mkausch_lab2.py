@@ -152,14 +152,14 @@ def make_pictogram_baby(groups, freq):
     # Define marker types (emoji symbols)
     markers = ['o', 's']
     colors = ['royalblue', 'darkred']
-    g = ['Not Merlot', 'Merlot']
+    g = ['100 Not Merlot Grapes', '100 Merlot Grapes']
 
     # Create Figure
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Generate pictogram
-    x_spacing = 6  # Horizontal spacing between groups
-    y_spacing = 1.5  # Vertical spacing
+    x_spacing = 7  # Horizontal spacing between groups
+    y_spacing = 1  # Vertical spacing
 
     for i, (label, count) in enumerate(zip(groups, freq)):
         num_icons = int(count / icon_size)  # Scale frequency to number of icons
@@ -169,7 +169,7 @@ def make_pictogram_baby(groups, freq):
         for j in range(num_icons):
             row = j // num_rows  # Row index
             col = j % num_rows   # Column index
-            x = i * x_spacing + col * 0.6  # Adjust X position for each icon
+            x = i * x_spacing + col * 0.7  # Adjust X position for each icon
             y = -row * y_spacing  # Adjust Y position to stack
             
             # **Use `text()` instead of scatter to place emojis**
@@ -178,8 +178,8 @@ def make_pictogram_baby(groups, freq):
     # Customize appearance
     ax.set_xlim(-1, x_spacing * len(groups))  # Adjust x-axis limits
     ax.set_ylim(-1, 1)  # Adjust height to fit icons
-    ax.set_xticks([x_spacing * i for i in range(len(groups))])
-    ax.set_xticklabels(groups, fontsize=12, fontweight='bold')
+    ax.set_xticks([])
+    # ax.set_xticklabels(groups, fontsize=12, fontweight='bold')
     ax.set_yticks([])  # Hide y-axis numbers
     ax.set_title("Pictogram of Grape Count", fontsize=14, fontweight='bold')
 
@@ -270,11 +270,11 @@ if __name__ == "__main__":
 
     x_vals = sorted(set(m_freq.keys()) | set(f_freq.keys()))
 
-    y_vals_m = []
-    y_vals_f = []
-    for x in x_vals:
-        y_vals_m.append(m_freq.get(x,0))
-        y_vals_f.append(f_freq.get(x,0))
+    y_vals_m = [m_freq.get(x,0) for x in x_vals]
+    y_vals_f = [f_freq.get(x,0) for x in x_vals]
+    # for x in x_vals:
+    #     y_vals_m.append(m_freq.get(x,0))
+    #     y_vals_f.append(f_freq.get(x,0))
 
 
     # Create Figure with Two Subplots
@@ -382,12 +382,6 @@ if __name__ == "__main__":
     ax.set_title("Radar Chart: Comparing Male vs. Female Averages", y=1.08)
 
     plt.show()
-
-
-
-
-
-
 
 
 
