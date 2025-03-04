@@ -152,6 +152,46 @@ def plot_2d_scatter(df, x_col, y_col):
     plt.show()
 
 
+def plot_multiple_box_strip_subplots(data_arrays, labels=None, title="Box and Strip Plots", ylabel="Values"):
+    """
+    Plots multiple vertical box and whisker plots with overlaid strip plots using subplots.
+
+    Parameters:
+    - data_arrays (list of np.array): A list of NumPy arrays containing numerical data.
+    - labels (list of str): Labels for each dataset (default: None).
+    - title (str): Title of the overall figure (default: "Box and Strip Plots").
+    - ylabel (str): Label for the y-axis (default: "Values").
+    """
+    num_datasets = len(data_arrays)
+    
+    # Default labels if none provided
+    if labels is None:
+        labels = [f"Dataset {i+1}" for i in range(num_datasets)]
+    
+    fig, axes = plt.subplots(ncols=num_datasets, figsize=(num_datasets * 3, 6), sharey=True)
+
+    for i, (data, label) in enumerate(zip(data_arrays, labels)):
+        ax = axes[i] if num_datasets > 1 else axes  # Handle single subplot case
+
+        # Boxplot
+        sns.boxplot(y=data, ax=ax, color="lightblue", width=0.5)
+
+        # Stripplot
+        sns.stripplot(y=data, ax=ax, color="red", alpha=0.6, jitter=True, size=6)
+
+        # Labels
+        ax.set_xlabel(label)
+        ax.set_ylabel(ylabel)
+        ax.grid(True, linestyle="--", alpha=0.7)
+
+    # Overall title
+    plt.suptitle(title)
+    plt.ylabel(ylabel)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.97])  # Adjust layout to fit title
+    plt.show()
+
+
 ##################################
 ##       Helper Functions       ##
 ##################################
@@ -251,6 +291,17 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     print(f"Stdev of stdevs: {stdevs_w.std()}")
     
     # TODO: Box and Whisker from this data
+
+
+    mean_title = "With vs Without Replacement Boxplot of Means (Sample rate: " + str(samp_rate) + ")"
+    stdevs_title = "With vs Without Replacement Boxplot of Stdevs (Sample rate: " + str(samp_rate) + ")"
+    means = [means_wo, means_w]
+    stdevs = [stdevs_wo, stdevs_w]
+    mean_labels = ["Without Replacement", "With Replacement"]
+    stdevs_labels = ["Without Replacement", "With Replacement"]
+
+    plot_multiple_box_strip_subplots(means, mean_labels, mean_title, "Mean Diameter (mm)")
+    plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Mean Stdevs (mm)")
 
     print(f"freq_of_freqs: {freq_of_freqs}")
 
