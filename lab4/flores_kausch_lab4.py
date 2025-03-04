@@ -204,7 +204,7 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     stdevs_wo = []
     print("\n------  Without Replacements ------")
     for _ in range(num_runs):
-        indices = get_random_array(n, int(samp_rate*n), False) # bool mask of 0's and 1's indicating selection
+        indices = get_random_array(n, int(samp_rate*n), False) 
         rand_data = df.iloc[indices]['diameter']
         # print(rand_data)
         stats = confidence_interval2(rand_data, 0.95)
@@ -231,7 +231,7 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     stdevs_w = []
     freq_of_freqs = {}
     for i in range(num_runs):
-        indices = get_random_array(n, int(samp_rate*n), True) # bool mask of 0's and 1's indicating selection
+        indices = get_random_array(n, int(samp_rate*n), True)
         count_dict = get_index_freq(indices)
         print(f"{i} - len: {len(count_dict)} - count_dict: {count_dict}")        
         rand_data = df.iloc[indices]['diameter']
@@ -305,6 +305,7 @@ def main():
     
     df_sampling = load_grape_data("./DataSampling_label_grape_data.txt", use_space=True)
     do_sampling_stuff(df_sampling, 0.1)
+    do_sampling_stuff(df_sampling, 0.02)
 
 if __name__ == "__main__":
     main()
