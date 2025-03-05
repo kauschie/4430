@@ -297,8 +297,6 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     print(f"Mean stdev: {stdevs_wo.mean()}")
     print(f"Stdev of stdevs: {stdevs_wo.std()}")
 
-    ## TODO: Box and Whisker From this Data
-
     ## with replacement
 
     print("\n\n-------  With Replacements -------")
@@ -330,6 +328,7 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
 
     # Visualizations
 
+    # Boxplots
     mean_title = "With vs Without Replacement Boxplot of Means (Sample rate: " + str(samp_rate) + ")"
     stdevs_title = "With vs Without Replacement Boxplot of Stdevs (Sample rate: " + str(samp_rate) + ")"
     means = [means_wo, means_w]
@@ -340,18 +339,97 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     plot_multiple_box_strip_subplots(means, mean_labels, mean_title, "Mean Diameter (mm)")
     plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Mean Stdevs (mm)")
 
-    # TODO: Histogram from freq_of_freqs data
+    # Histogram
     frequency_plot_title = "Sampling Duplicates Distribution (Sample rate: " + str(samp_rate) + ")"
     plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
 
+
+# TODO Stratified Sampling
+def stratified_sampling(df, sample_rate, stratify_cols=None):
+    """
+    Performs stratified sampling on a DataFrame.
+    
+    Parameters:
+    - df (pd.DataFrame): The dataset to sample from.
+    - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+    - stratify_cols (list of str, optional): Column(s) to stratify by (SQL-like selection).
+    
+    Returns:
+    - pd.DataFrame: A sampled DataFrame based on the given stratification.
+    """
+    if not (0 < sample_rate <= 1):
+        raise ValueError("Sample rate must be between 0 and 1.")
+
+    if stratify_cols:
+        # Ensure valid column names
+        for col in stratify_cols:
+            if col not in df.columns:
+                raise ValueError(f"Column '{col}' not found in DataFrame.")
+
+        # Perform stratified sampling
+        sampled_df = df.groupby(stratify_cols, group_keys=False)\
+            .apply(lambda x: x.sample(n=min(len(x), max(1, int(len(x) * sample_rate)))), include_groups=False)
+    else:
+        # If no stratification columns, do simple random sampling
+        sampled_df = df.sample(frac=sample_rate, random_state=42)
+
+    return sampled_df.reset_index(drop=True)
+
+# TODO Strategic Sampling
+def strategic_sampling(data:pd.DataFrame, sample_rate:float):
+    pass
 
 
 def main():
     """Main execution function."""
 
     df_sampling = load_grape_data("./DataSampling_label_grape_data.txt", use_space=True)
+
+    sample_rate = 0.02
+
     do_sampling_stuff(df_sampling, 0.1)
     do_sampling_stuff(df_sampling, 0.02)
+
+
+
+
+
+    # TODO Stratified Sampling
+
+    # Create empty list of means and stdevs
+    strat_means  = np.array([])
+    strat_stdevs = np.array([])
+
+    for _ in range(100):
+        # Get stratified samples
+        stratified_samples_df = stratified_sampling(df_sampling, sample_rate, ["type"])
+        # print(stratified_samples_df)
+
+        # Find the mean and standard deviation of the samples
+        strat_mean = stratified_samples_df["diameter"].mean()
+        strat_stdev  = stratified_samples_df["diameter"].std()
+
+        # print(strat_mean, strat_stdev)
+
+        strat_means = np.append(strat_means, strat_mean)
+        strat_stdevs = np.append(strat_stdevs, strat_stdev)
+
+    # Stratified Samples Mean of Means and Mean of Stdev
+    strat_mom = np.mean(strat_means)
+    strat_mos = np.mean(strat_stdevs)
+
+    # Boxplot Visualization
+    mean_title   = "Stratified Sampling Mean Values (Sample Rate: " + str(sample_rate) + ")"
+    stdev_title  = "Stratified Sampling Standard Deviation Values (Sample Rate: " + str(sample_rate) + ")"
+
+    plot_multiple_box_strip_subplots([strat_means], title=mean_title, ylabel="Mean Diameter (mm)")
+    plot_multiple_box_strip_subplots([strat_stdevs], title=stdev_title, ylabel="Standard Deviation (mm)")
+
+
+
+
+    # TODO Strategic Sampling
+    # strategic_samples_df = strategic_sampling(df_sampling, 0.02)
 
 if __name__ == "__main__":
     main()
