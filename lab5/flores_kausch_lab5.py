@@ -112,8 +112,6 @@ def confidence_interval2(data, confidence: float = 0.95):
     return {"mean":mean, "stdev":stdev, "ci":ci}
 
 
-
-
 #### Plotting Functions
 
 def plot_3d_scatter(df):
@@ -215,6 +213,44 @@ def plot_distance_heatmap(data, title="Heatmap", colorbar_title="Correlation", c
     # Display the heatmap
     plt.show()
 
+def plot_frequency_histogram(freq_dict, title="Frequency Histogram", xlabel="Unique Sample Sizes", ylabel="Frequency"):
+    """
+    Plots a histogram from a dictionary of frequencies.
+
+    Parameters:
+    - freq_dict (dict): A dictionary where keys represent unique values, and values represent their frequency.
+    - title (str): The title of the histogram (default: "Histogram of Frequency of Frequencies").
+    - xlabel (str): Label for the x-axis (default: "Unique Sample Sizes").
+    - ylabel (str): Label for the y-axis (default: "Frequency").
+    """
+    # Get the min and max values from the keys
+    min_val = min(freq_dict.keys())
+    max_val = max(freq_dict.keys())
+
+    # Generate a continuous range of integers from min to max
+    full_x_values = list(range(min_val, max_val + 1))
+
+    # Fill missing values with zero
+    frequencies = [freq_dict.get(x, 0) for x in full_x_values]
+
+    # Plot histogram
+    plt.figure(figsize=(8, 5))
+    plt.bar(full_x_values, frequencies, color="skyblue", edgecolor="black", alpha=0.7)
+
+    # Labels and title
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    # Set x-axis ticks to be only the unique sample sizes
+    plt.xticks(full_x_values)
+
+    # Display grid for better readability
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+
+    # Show the plot
+    plt.show()
+
 def normalize_df(df):
     df_norm = (df - df.min()) / (df.max() - df.min())
     return df_norm
@@ -289,9 +325,10 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     print(f"Stdev of means: {means_w.std()}")
     print(f"Mean stdev: {stdevs_w.mean()}")
     print(f"Stdev of stdevs: {stdevs_w.std()}")
-    
-    # TODO: Box and Whisker from this data
 
+    print(f"freq_of_freqs: {freq_of_freqs}")
+
+    # Visualizations
 
     mean_title = "With vs Without Replacement Boxplot of Means (Sample rate: " + str(samp_rate) + ")"
     stdevs_title = "With vs Without Replacement Boxplot of Stdevs (Sample rate: " + str(samp_rate) + ")"
@@ -303,9 +340,9 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     plot_multiple_box_strip_subplots(means, mean_labels, mean_title, "Mean Diameter (mm)")
     plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Mean Stdevs (mm)")
 
-    print(f"freq_of_freqs: {freq_of_freqs}")
-
     # TODO: Histogram from freq_of_freqs data
+    frequency_plot_title = "Sampling Duplicates Distribution (Sample rate: " + str(samp_rate) + ")"
+    plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
 
 
 
