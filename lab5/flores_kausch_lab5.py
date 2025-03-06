@@ -1,4 +1,5 @@
 import dcor
+import random
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -337,14 +338,12 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     stdevs_labels = ["Without Replacement", "With Replacement"]
 
     plot_multiple_box_strip_subplots(means, mean_labels, mean_title, "Mean Diameter (mm)")
-    plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Mean Stdevs (mm)")
+    plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Standard Deviation (mm)")
 
     # Histogram
     frequency_plot_title = "Sampling Duplicates Distribution (Sample rate: " + str(samp_rate) + ")"
     plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
 
-
-# TODO Stratified Sampling
 def stratified_sampling(df, sample_rate, stratify_cols=None):
     """
     Performs stratified sampling on a DataFrame.
@@ -376,8 +375,31 @@ def stratified_sampling(df, sample_rate, stratify_cols=None):
     return sampled_df.reset_index(drop=True)
 
 # TODO Strategic Sampling
-def strategic_sampling(data:pd.DataFrame, sample_rate:float):
-    pass
+def strategic_sampling(df:pd.DataFrame, sample_rate:float, offset:int):
+    """
+    Performs strategic sampling by selecting evenly spaced samples from the DataFrame.
+
+    Parameters:
+    - df (pd.DataFrame): The dataset to sample from.
+    - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+
+    Returns:
+    - pd.DataFrame: A sampled DataFrame using strategic selection.
+    """
+    if not (0 < sample_rate <= 1):
+        raise ValueError("Argument sample_rate must be between 0 and 1.")
+    
+    if not (0 == offset or 1 == offset):
+        raise ValueError("Argument offset must be either 0 or 1")
+    
+    N = len(df)  # Total number of rows
+    num_samples = max(1, int(N * sample_rate))  # Ensure at least 1 sample
+    step_size = max(1, N // num_samples)  # Compute step size dynamically
+
+    # Select every `step_size`-th row, starting at `offset`
+    sampled_df = df.iloc[offset::step_size].reset_index(drop=True)
+
+    return sampled_df
 
 
 def main():
@@ -392,9 +414,7 @@ def main():
 
 
 
-
-
-    # TODO Stratified Sampling
+    # Stratified Sampling
 
     # Create empty list of means and stdevs
     strat_means  = np.array([])
@@ -415,21 +435,30 @@ def main():
         strat_stdevs = np.append(strat_stdevs, strat_stdev)
 
     # Stratified Samples Mean of Means and Mean of Stdev
-    strat_mom = np.mean(strat_means)
-    strat_mos = np.mean(strat_stdevs)
+    print(f"Mean of means: {np.mean(strat_means)}")
+    print(f"Stdev of means: {np.std(strat_means)}")
+    print(f"Mean stdev: {np.mean(strat_stdevs)}")
+    print(f"Stdev of stdevs: {np.std(strat_stdevs)}")
 
     # Boxplot Visualization
-    mean_title   = "Stratified Sampling Mean Values (Sample Rate: " + str(sample_rate) + ")"
-    stdev_title  = "Stratified Sampling Standard Deviation Values (Sample Rate: " + str(sample_rate) + ")"
+    mean_title   = "Stratified Sampling Boxplot of Means (Sample Rate: " + str(sample_rate) + ")"
+    stdev_title  = "Stratified Sampling Boxplot of Stdevs (Sample Rate: " + str(sample_rate) + ")"
 
-    plot_multiple_box_strip_subplots([strat_means], title=mean_title, ylabel="Mean Diameter (mm)")
-    plot_multiple_box_strip_subplots([strat_stdevs], title=stdev_title, ylabel="Standard Deviation (mm)")
-
-
+    plot_multiple_box_strip_subplots([strat_means], title=mean_title, labels=[""], ylabel="Mean Diameter (mm)")
+    plot_multiple_box_strip_subplots([strat_stdevs], title=stdev_title, labels=[""], ylabel="Standard Deviation (mm)")
 
 
-    # TODO Strategic Sampling
-    # strategic_samples_df = strategic_sampling(df_sampling, 0.02)
+
+
+    # Strategic Sampling
+
+    # Sampling with no offset (starting at the first index)
+    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 0)
+    print(f'\nMean of Strategic Samples (offset = 0): {strategic_samples_df["diameter"].mean()}')
+
+    # Sampling with offset (starting at the second index)
+    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 1)
+    print(f'Mean of Strategic Samples (offset = 1): {strategic_samples_df["diameter"].mean()}\n')
 
 if __name__ == "__main__":
     main()
