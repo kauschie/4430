@@ -368,6 +368,55 @@ def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     frequency_plot_title = "Sampling Duplicates Distribution (Sample rate: " + str(samp_rate) + ")"
     plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
 
+
+def stratified_sampling2(df, sample_rate, stratify_cols=None, return_counts=False):
+    """
+    Performs stratified sampling on a DataFrame.
+
+    Parameters:
+    - df (pd.DataFrame): The dataset to sample from.
+    - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+    - stratify_cols (list of str, optional): Column(s) to stratify by.
+    - return_counts (bool, optional): If True, returns the sampled dataframe along with a count of sampled rows per stratified group.
+
+    Returns:
+    - pd.DataFrame: A sampled DataFrame.
+    - (Optional) pd.Series: Count of sampled rows per stratified group (if return_counts=True).
+    """
+    if not (0 < sample_rate <= 1):
+        raise ValueError("Sample rate must be between 0 and 1.")
+
+    if stratify_cols:
+        # Ensure valid column names
+        for col in stratify_cols:
+            if col not in df.columns:
+                raise ValueError(f"Column '{col}' not found in DataFrame.")
+
+        sampled_df_list = []  # List to store sampled dataframes
+
+        # Perform stratified sampling manually without lambda
+        for group, group_df in df.groupby(stratify_cols):
+            num_samples = max(1, int(len(group_df) * sample_rate))  # Ensure at least 1 sample
+            sampled_group = group_df.sample(n=num_samples, random_state=42)
+            sampled_df_list.append(sampled_group)
+
+        # Concatenate all sampled groups into a single DataFrame
+        sampled_df = pd.concat(sampled_df_list).reset_index(drop=True)
+
+    else:
+        # If no stratification columns, do simple random sampling
+        sampled_df = df.sample(frac=sample_rate, random_state=42).reset_index(drop=True)
+
+    # If return_counts is True, return counts of sampled rows per stratified group
+    if return_counts and stratify_cols:
+        sampled_counts = sampled_df[stratify_cols[0]].value_counts()
+        return sampled_df, sampled_counts
+
+    return sampled_df
+
+
+
+
 def stratified_sampling(df, sample_rate, stratify_cols=None):
     """
     Performs stratified sampling on a DataFrame.
@@ -396,34 +445,49 @@ def stratified_sampling(df, sample_rate, stratify_cols=None):
         # If no stratification columns, do simple random sampling
         sampled_df = df.sample(frac=sample_rate, random_state=42)
 
+    
+
     return sampled_df.reset_index(drop=True)
 
 # TODO Strategic Sampling
-def strategic_sampling(df:pd.DataFrame, sample_rate:float, offset:int):
+import pandas as pd
+import numpy as np
+
+def strategic_sampling(df: pd.DataFrame, sample_rate: float, offset: int, return_counts: bool = False):
     """
-    Performs strategic sampling by selecting evenly spaced samples from the DataFrame.
+    Performs systematic sampling by selecting evenly spaced samples from the DataFrame.
 
     Parameters:
     - df (pd.DataFrame): The dataset to sample from.
     - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+    - offset (int): The starting index for sampling (should be between 0 and step_size-1).
+    - return_counts (bool, optional): If True, returns counts of samples per group.
 
     Returns:
-    - pd.DataFrame: A sampled DataFrame using strategic selection.
+    - pd.DataFrame: A sampled DataFrame using systematic selection.
+    - (Optional) pd.Series: Count of sampled rows per group if return_counts=True.
     """
     if not (0 < sample_rate <= 1):
         raise ValueError("Argument sample_rate must be between 0 and 1.")
-    
-    if not (0 == offset or 1 == offset):
-        raise ValueError("Argument offset must be either 0 or 1")
     
     N = len(df)  # Total number of rows
     num_samples = max(1, int(N * sample_rate))  # Ensure at least 1 sample
     step_size = max(1, N // num_samples)  # Compute step size dynamically
 
-    # Select every `step_size`-th row, starting at `offset`
-    sampled_df = df.iloc[offset::step_size].reset_index(drop=True)
+    if not (0 <= offset < step_size):
+        raise ValueError(f"Offset must be between 0 and {step_size - 1}.")
+
+    # Use np.arange() to systematically pick indices
+    sampled_indices = np.arange(offset, N, step_size)
+    sampled_df = df.iloc[sampled_indices].reset_index(drop=True)
+
+    # Return sampled DataFrame with counts if requested
+    if return_counts and "type" in df.columns:
+        sampled_counts = sampled_df["type"].value_counts()
+        return sampled_df, sampled_counts
 
     return sampled_df
+
 
 
 def main():
@@ -434,8 +498,8 @@ def main():
 
     sample_rate = 0.02
 
-    do_sampling_stuff(df_sampling, 0.1)
-    do_sampling_stuff(df_sampling, 0.02)
+    do_random_sampling(df_sampling, 0.1)
+    do_random_sampling(df_sampling, 0.02)
 
 
 
@@ -465,6 +529,13 @@ def main():
     print(f"Mean stdev: {np.mean(strat_stdevs)}")
     print(f"Stdev of stdevs: {np.std(strat_stdevs)}")
 
+
+    strat_sampling_df, counts = stratified_sampling2(df_sampling, sample_rate, ["type"], return_counts=True)
+    print(f"strat_sampling_df: {strat_sampling_df}")
+    # print(strat_sampling_df.head())
+    print(f"counts: {counts}")
+
+
     # Boxplot Visualization
     mean_title   = "Stratified Sampling Boxplot of Means (Sample Rate: " + str(sample_rate) + ")"
     stdev_title  = "Stratified Sampling Boxplot of Stdevs (Sample Rate: " + str(sample_rate) + ")"
@@ -478,12 +549,18 @@ def main():
     # Strategic Sampling
 
     # Sampling with no offset (starting at the first index)
-    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 0)
+    strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 0, return_counts=True)
     print(f'\nMean of Strategic Samples (offset = 0): {strategic_samples_df["diameter"].mean()}')
-
+    print(f"counts: {counts}")
     # Sampling with offset (starting at the second index)
-    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 1)
+    strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 1, return_counts=True)
     print(f'Mean of Strategic Samples (offset = 1): {strategic_samples_df["diameter"].mean()}\n')
+    print(f"counts: {counts}")
+
+
+
+
+
 
 if __name__ == "__main__":
     main()
