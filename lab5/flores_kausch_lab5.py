@@ -112,72 +112,20 @@ def confidence_interval2(data, confidence: float = 0.95):
     return {"mean":mean, "stdev":stdev, "ci":ci}
 
 
-
-
-#### Plotting Functions
-
-def plot_3d_scatter(df):
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Scatter plot
-    ax.scatter(df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], c='b', marker='o')
-
-    # Labels
-    ax.set_xlabel(df.columns[0])
-    ax.set_ylabel(df.columns[1])
-    ax.set_zlabel(df.columns[2])
-    ax.set_title('3D Scatter Plot of Normalized Features')
-
-    plt.show()
-
-
-def plot_2d_scatter(df, x_col, y_col):
-    """
-    Plots a 2D scatter plot for two selected columns from the DataFrame.
-    
-    Parameters:
-    df (pd.DataFrame): The normalized dataset
-    x_col (str): Name of the column for the x-axis
-    y_col (str): Name of the column for the y-axis
-    """
-    plt.figure(figsize=(8, 6))
-    plt.scatter(df[x_col], df[y_col], c='b', alpha=0.6, edgecolors='k')
-
-    plt.xlabel(x_col)
-    plt.ylabel(y_col)
-    plt.title(f'2D Scatter Plot: {x_col} vs {y_col}')
-    plt.grid(True)
-    
-    plt.show()
-
-
 ##################################
 ##       Helper Functions       ##
 ##################################
 
-def plot_distance_heatmap(data, title="Heatmap", colorbar_title="Correlation", cmap="jet", vmin=None, vmax=None, titles=None, annot=False):
-    # Dynamically adjust figure size
-    plt.figure(figsize=(max(8, 1.5 * data.shape[1]), max(6, 1.5 * data.shape[0])))
+def update_epoch_f(epoch_f:dict, indices):
+    
+    for idx in indices:
+        val = epoch_f.get(idx,0)
+        epoch_f[idx] = val+1
 
-    # Set up the heatmap using Seaborn
-    ax = sns.heatmap(data, annot=annot, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax, cbar_kws={'label': colorbar_title})
-    ax.xaxis.set_ticks_position("top")
-    ax.xaxis.set_label_position("top")
-    ax.tick_params(axis="x", rotation=45)
+    return epoch_f
 
-    # Plot Title
-    plt.title(title, fontsize=14, pad=20)
-
-    # Optimize layout to prevent clipping
-    plt.tight_layout()
-
-    # Display the heatmap
-    plt.show()
-
-def normalize_df(df):
-    df_norm = (df - df.min()) / (df.max() - df.min())
-    return df_norm
+def get_num_blank(epoch_f:dict, num_samples:int):
+    return (len(epoch_f) - num_samples)
 
 def get_random_array(n:int, sample_size:int, replacement:bool):
     sample_indices = np.random.choice(n, size=sample_size, replace=replacement)
@@ -194,16 +142,21 @@ def get_index_freq(indices):
     dup_dict = dict(zip(duplicate_indices, duplicate_counts))
     return dup_dict
 
-def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
+def do_striated_sampling(df:pd.DataFrame, samp_rate:float):
+    pass
+
+def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     num_runs = 100
     n = df["diameter"].size
 
     ## without replacement
     means_wo = []
     stdevs_wo = []
+    epoch_f_wo = {}
     print("\n------  Without Replacements ------")
     for _ in range(num_runs):
         indices = get_random_array(n, int(samp_rate*n), False) 
+        epoch_f_wo = update_epoch_f(epoch_f_wo, indices)
         rand_data = df.iloc[indices]['diameter']
         # print(rand_data)
         stats = confidence_interval2(rand_data, 0.95)
@@ -215,11 +168,13 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     
     means_wo = np.array(means_wo)
     stdevs_wo = np.array(stdevs_wo)
+    num_not_sampled = n - len(epoch_f_wo)
 
     print(f"Mean of means: {means_wo.mean()}")
     print(f"Stdev of means: {means_wo.std()}")
     print(f"Mean stdev: {stdevs_wo.mean()}")
     print(f"Stdev of stdevs: {stdevs_wo.std()}")
+    print(f"Number of samples not-sampled (sr: {samp_rate*100}%): {num_not_sampled}")
 
     ## TODO: Box and Whisker From this Data
 
@@ -229,10 +184,12 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
     means_w = []
     stdevs_w = []
     freq_of_freqs = {}
+    epoch_f_w = {}
     for i in range(num_runs):
         indices = get_random_array(n, int(samp_rate*n), True)
+        epoch_f_w = update_epoch_f(epoch_f_w, indices)
         count_dict = get_index_freq(indices)
-        print(f"{i} - len: {len(count_dict)} - count_dict: {count_dict}")        
+        # print(f"{i} - len: {len(count_dict)} - count_dict: {count_dict}")        
         rand_data = df.iloc[indices]['diameter']
         stats = confidence_interval2(rand_data, 0.95)
         mean = stats['mean']
@@ -244,11 +201,13 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
 
     means_w = np.array(means_w)
     stdevs_w = np.array(stdevs_w)
+    num_not_sampled = n - len(epoch_f_w)
 
     print(f"Mean of means: {means_w.mean()}")
     print(f"Stdev of means: {means_w.std()}")
     print(f"Mean stdev: {stdevs_w.mean()}")
     print(f"Stdev of stdevs: {stdevs_w.std()}")
+    print(f"Number of samples not-sampled (sr: {samp_rate*100}%): {num_not_sampled}")
     
     # TODO: Box and Whisker from this data
 
@@ -261,9 +220,24 @@ def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
 def main():
     """Main execution function."""
 
+    ## Question 1: Random Sample 10% of the Data, how many are sampled twice?
     df_sampling = load_grape_data("./DataSampling_label_grape_data.txt", use_space=True)
-    do_sampling_stuff(df_sampling, 0.1)
-    do_sampling_stuff(df_sampling, 0.02)
+    do_random_sampling(df_sampling, 0.1)
+
+
+    ## Question 2: Random Sample 2% of the Data, 
+    do_random_sampling(df_sampling, 0.02)
+
+    # how many ARE NOT sampled at all? # done for both 10% and 2%
+    
+
+    ## Question 3: Mean and Stdev by
+
+
+    ## Part A: Striated Sampling - Use Box Number and compare them?
+
+
+    ## Part B: Systematic Sampling - sample every N rows, test a few different numbers and compare them?
 
 if __name__ == "__main__":
     main()
