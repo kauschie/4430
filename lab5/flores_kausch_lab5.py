@@ -1,4 +1,5 @@
 import dcor
+import random
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -112,9 +113,148 @@ def confidence_interval2(data, confidence: float = 0.95):
     return {"mean":mean, "stdev":stdev, "ci":ci}
 
 
+#### Plotting Functions
+
+def plot_3d_scatter(df):
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Scatter plot
+    ax.scatter(df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], c='b', marker='o')
+
+    # Labels
+    ax.set_xlabel(df.columns[0])
+    ax.set_ylabel(df.columns[1])
+    ax.set_zlabel(df.columns[2])
+    ax.set_title('3D Scatter Plot of Normalized Features')
+
+    plt.show()
+
+
+def plot_2d_scatter(df, x_col, y_col):
+    """
+    Plots a 2D scatter plot for two selected columns from the DataFrame.
+    
+    Parameters:
+    df (pd.DataFrame): The normalized dataset
+    x_col (str): Name of the column for the x-axis
+    y_col (str): Name of the column for the y-axis
+    """
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df[x_col], df[y_col], c='b', alpha=0.6, edgecolors='k')
+
+    plt.xlabel(x_col)
+    plt.ylabel(y_col)
+    plt.title(f'2D Scatter Plot: {x_col} vs {y_col}')
+    plt.grid(True)
+    
+    plt.show()
+
+
+def plot_multiple_box_strip_subplots(data_arrays, labels=None, title="Box and Strip Plots", ylabel="Values"):
+    """
+    Plots multiple vertical box and whisker plots with overlaid strip plots using subplots.
+
+    Parameters:
+    - data_arrays (list of np.array): A list of NumPy arrays containing numerical data.
+    - labels (list of str): Labels for each dataset (default: None).
+    - title (str): Title of the overall figure (default: "Box and Strip Plots").
+    - ylabel (str): Label for the y-axis (default: "Values").
+    """
+    num_datasets = len(data_arrays)
+    
+    # Default labels if none provided
+    if labels is None:
+        labels = [f"Dataset {i+1}" for i in range(num_datasets)]
+    
+    fig, axes = plt.subplots(ncols=num_datasets, figsize=(num_datasets * 3, 6), sharey=True)
+
+    for i, (data, label) in enumerate(zip(data_arrays, labels)):
+        ax = axes[i] if num_datasets > 1 else axes  # Handle single subplot case
+
+        # Boxplot
+        sns.boxplot(y=data, ax=ax, color="lightblue", width=0.5)
+
+        # Stripplot
+        sns.stripplot(y=data, ax=ax, color="red", alpha=0.6, jitter=True, size=6)
+
+        # Labels
+        ax.set_xlabel(label)
+        ax.set_ylabel(ylabel)
+        ax.grid(True, linestyle="--", alpha=0.7)
+
+    # Overall title
+    plt.suptitle(title)
+    plt.ylabel(ylabel)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.97])  # Adjust layout to fit title
+    plt.show()
+
+
 ##################################
 ##       Helper Functions       ##
 ##################################
+
+def plot_distance_heatmap(data, title="Heatmap", colorbar_title="Correlation", cmap="jet", vmin=None, vmax=None, titles=None, annot=False):
+    # Dynamically adjust figure size
+    plt.figure(figsize=(max(8, 1.5 * data.shape[1]), max(6, 1.5 * data.shape[0])))
+
+    # Set up the heatmap using Seaborn
+    ax = sns.heatmap(data, annot=annot, fmt=".2f", cmap=cmap, vmin=vmin, vmax=vmax, cbar_kws={'label': colorbar_title})
+    ax.xaxis.set_ticks_position("top")
+    ax.xaxis.set_label_position("top")
+    ax.tick_params(axis="x", rotation=45)
+
+    # Plot Title
+    plt.title(title, fontsize=14, pad=20)
+
+    # Optimize layout to prevent clipping
+    plt.tight_layout()
+
+    # Display the heatmap
+    plt.show()
+
+def plot_frequency_histogram(freq_dict, title="Frequency Histogram", xlabel="Unique Sample Sizes", ylabel="Frequency"):
+    """
+    Plots a histogram from a dictionary of frequencies.
+
+    Parameters:
+    - freq_dict (dict): A dictionary where keys represent unique values, and values represent their frequency.
+    - title (str): The title of the histogram (default: "Histogram of Frequency of Frequencies").
+    - xlabel (str): Label for the x-axis (default: "Unique Sample Sizes").
+    - ylabel (str): Label for the y-axis (default: "Frequency").
+    """
+    # Get the min and max values from the keys
+    min_val = min(freq_dict.keys())
+    max_val = max(freq_dict.keys())
+
+    # Generate a continuous range of integers from min to max
+    full_x_values = list(range(min_val, max_val + 1))
+
+    # Fill missing values with zero
+    frequencies = [freq_dict.get(x, 0) for x in full_x_values]
+
+    # Plot histogram
+    plt.figure(figsize=(8, 5))
+    plt.bar(full_x_values, frequencies, color="skyblue", edgecolor="black", alpha=0.7)
+
+    # Labels and title
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+
+    # Set x-axis ticks to be only the unique sample sizes
+    plt.xticks(full_x_values)
+
+    # Display grid for better readability
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+
+    # Show the plot
+    plt.show()
+
+def normalize_df(df):
+    df_norm = (df - df.min()) / (df.max() - df.min())
+    return df_norm
 
 def update_epoch_f(epoch_f:dict, indices):
     
@@ -208,13 +348,82 @@ def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     print(f"Mean stdev: {stdevs_w.mean()}")
     print(f"Stdev of stdevs: {stdevs_w.std()}")
     print(f"Number of samples not-sampled (sr: {samp_rate*100}%): {num_not_sampled}")
-    
-    # TODO: Box and Whisker from this data
 
     print(f"freq_of_freqs: {freq_of_freqs}")
 
-    # TODO: Histogram from freq_of_freqs data
+    # Visualizations
 
+    # Boxplots
+    mean_title = "With vs Without Replacement Boxplot of Means (Sample rate: " + str(samp_rate) + ")"
+    stdevs_title = "With vs Without Replacement Boxplot of Stdevs (Sample rate: " + str(samp_rate) + ")"
+    means = [means_wo, means_w]
+    stdevs = [stdevs_wo, stdevs_w]
+    mean_labels = ["Without Replacement", "With Replacement"]
+    stdevs_labels = ["Without Replacement", "With Replacement"]
+
+    plot_multiple_box_strip_subplots(means, mean_labels, mean_title, "Mean Diameter (mm)")
+    plot_multiple_box_strip_subplots(stdevs, stdevs_labels, stdevs_title, "Standard Deviation (mm)")
+
+    # Histogram
+    frequency_plot_title = "Sampling Duplicates Distribution (Sample rate: " + str(samp_rate) + ")"
+    plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
+
+def stratified_sampling(df, sample_rate, stratify_cols=None):
+    """
+    Performs stratified sampling on a DataFrame.
+    
+    Parameters:
+    - df (pd.DataFrame): The dataset to sample from.
+    - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+    - stratify_cols (list of str, optional): Column(s) to stratify by (SQL-like selection).
+    
+    Returns:
+    - pd.DataFrame: A sampled DataFrame based on the given stratification.
+    """
+    if not (0 < sample_rate <= 1):
+        raise ValueError("Sample rate must be between 0 and 1.")
+
+    if stratify_cols:
+        # Ensure valid column names
+        for col in stratify_cols:
+            if col not in df.columns:
+                raise ValueError(f"Column '{col}' not found in DataFrame.")
+
+        # Perform stratified sampling
+        sampled_df = df.groupby(stratify_cols, group_keys=False)\
+            .apply(lambda x: x.sample(n=min(len(x), max(1, int(len(x) * sample_rate)))), include_groups=False)
+    else:
+        # If no stratification columns, do simple random sampling
+        sampled_df = df.sample(frac=sample_rate, random_state=42)
+
+    return sampled_df.reset_index(drop=True)
+
+# TODO Strategic Sampling
+def strategic_sampling(df:pd.DataFrame, sample_rate:float, offset:int):
+    """
+    Performs strategic sampling by selecting evenly spaced samples from the DataFrame.
+
+    Parameters:
+    - df (pd.DataFrame): The dataset to sample from.
+    - sample_rate (float): The fraction of the dataset to sample (between 0 and 1).
+
+    Returns:
+    - pd.DataFrame: A sampled DataFrame using strategic selection.
+    """
+    if not (0 < sample_rate <= 1):
+        raise ValueError("Argument sample_rate must be between 0 and 1.")
+    
+    if not (0 == offset or 1 == offset):
+        raise ValueError("Argument offset must be either 0 or 1")
+    
+    N = len(df)  # Total number of rows
+    num_samples = max(1, int(N * sample_rate))  # Ensure at least 1 sample
+    step_size = max(1, N // num_samples)  # Compute step size dynamically
+
+    # Select every `step_size`-th row, starting at `offset`
+    sampled_df = df.iloc[offset::step_size].reset_index(drop=True)
+
+    return sampled_df
 
 
 def main():
@@ -222,22 +431,59 @@ def main():
 
     ## Question 1: Random Sample 10% of the Data, how many are sampled twice?
     df_sampling = load_grape_data("./DataSampling_label_grape_data.txt", use_space=True)
-    do_random_sampling(df_sampling, 0.1)
+
+    sample_rate = 0.02
+
+    do_sampling_stuff(df_sampling, 0.1)
+    do_sampling_stuff(df_sampling, 0.02)
 
 
-    ## Question 2: Random Sample 2% of the Data, 
-    do_random_sampling(df_sampling, 0.02)
 
-    # how many ARE NOT sampled at all? # done for both 10% and 2%
-    
+    # Stratified Sampling
 
-    ## Question 3: Mean and Stdev by
+    # Create empty list of means and stdevs
+    strat_means  = np.array([])
+    strat_stdevs = np.array([])
+
+    for _ in range(100):
+        # Get stratified samples
+        stratified_samples_df = stratified_sampling(df_sampling, sample_rate, ["type"])
+        # print(stratified_samples_df)
+
+        # Find the mean and standard deviation of the samples
+        strat_mean = stratified_samples_df["diameter"].mean()
+        strat_stdev  = stratified_samples_df["diameter"].std()
+
+        # print(strat_mean, strat_stdev)
+
+        strat_means = np.append(strat_means, strat_mean)
+        strat_stdevs = np.append(strat_stdevs, strat_stdev)
+
+    # Stratified Samples Mean of Means and Mean of Stdev
+    print(f"Mean of means: {np.mean(strat_means)}")
+    print(f"Stdev of means: {np.std(strat_means)}")
+    print(f"Mean stdev: {np.mean(strat_stdevs)}")
+    print(f"Stdev of stdevs: {np.std(strat_stdevs)}")
+
+    # Boxplot Visualization
+    mean_title   = "Stratified Sampling Boxplot of Means (Sample Rate: " + str(sample_rate) + ")"
+    stdev_title  = "Stratified Sampling Boxplot of Stdevs (Sample Rate: " + str(sample_rate) + ")"
+
+    plot_multiple_box_strip_subplots([strat_means], title=mean_title, labels=[""], ylabel="Mean Diameter (mm)")
+    plot_multiple_box_strip_subplots([strat_stdevs], title=stdev_title, labels=[""], ylabel="Standard Deviation (mm)")
 
 
-    ## Part A: Striated Sampling - Use Box Number and compare them?
 
 
-    ## Part B: Systematic Sampling - sample every N rows, test a few different numbers and compare them?
+    # Strategic Sampling
+
+    # Sampling with no offset (starting at the first index)
+    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 0)
+    print(f'\nMean of Strategic Samples (offset = 0): {strategic_samples_df["diameter"].mean()}')
+
+    # Sampling with offset (starting at the second index)
+    strategic_samples_df = strategic_sampling(df_sampling, 0.02, 1)
+    print(f'Mean of Strategic Samples (offset = 1): {strategic_samples_df["diameter"].mean()}\n')
 
 if __name__ == "__main__":
     main()
