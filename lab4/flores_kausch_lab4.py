@@ -121,7 +121,7 @@ def single_observation_z_test(x, mu_0, sigma, alpha=0.05):
 
 
 
-def confidence_interval(df: pd.DataFrame, column: str, confidence: float = 0.95):
+def confidence_interval(df: pd.DataFrame, column: str, confidence: float = 0.95, grape_type: int = None):
     """
     Computes the confidence interval for a given column in a Pandas DataFrame.
     
@@ -129,45 +129,30 @@ def confidence_interval(df: pd.DataFrame, column: str, confidence: float = 0.95)
         df (pd.DataFrame): The DataFrame containing the data.
         column (str): The name of the column for which to compute the confidence interval.
         confidence (float): The confidence level (default is 95%).
+        grape_type (int, optional): If specified, filters the dataset to only include rows where 'type' == grape_type.
         
     Returns:
         tuple: The lower and upper bounds of the confidence interval.
     """
+    if grape_type is not None:
+        df = df[df['type'] == grape_type]  # Filter based on grape type
+    
     data = df[column].dropna().values  # Drop NaN values
+    if len(data) == 0:
+        raise ValueError("No data available after filtering. Check your grape type and column name.")
+    
     mean = np.mean(data)
-    stdev = np.std(data)
     std_err = stats.sem(data)  # Standard error of the mean
-    df = len(data) - 1  # Degrees of freedom
+    stdev = np.std(data)  # Standard deviation
+    degree_f = len(data) - 1  # Degrees of freedom
     
-    # Use t-distribution for small sample sizes, normal distribution for large samples
-    ci = stats.t.interval(confidence, df, loc=mean, scale=std_err)
-    
+    print(f"degree_f: {degree_f}")
+    ci = stats.t.interval(confidence, degree_f, loc=mean, scale=std_err)
 
     return {"mean":mean, "stdev":stdev, "ci":ci}
 
-def confidence_interval2(data, confidence: float = 0.95):
-    """
-    Computes the confidence interval for a given column in a Pandas DataFrame.
-    
-    Parameters:
-        df (pd.DataFrame): The DataFrame containing the data.
-        column (str): The name of the column for which to compute the confidence interval.
-        confidence (float): The confidence level (default is 95%).
-        
-    Returns:
-        tuple: The lower and upper bounds of the confidence interval.
-    """
-    # data = df[column].dropna().values  # Drop NaN values
-    mean = data.mean()
-    stdev = data.std()
-    std_err = stats.sem(data)  # Standard error of the mean
-    df = len(data) - 1  # Degrees of freedom
-    
-    # Use t-distribution for small sample sizes, normal distribution for large samples
-    ci = stats.t.interval(confidence, df, loc=mean, scale=std_err)
-    
 
-    return {"mean":mean, "stdev":stdev, "ci":ci}
+
 
 
 
@@ -266,8 +251,9 @@ def plot_multiple_samples_vs_hypothesized_mean(samples, box_names, hypoth_mean):
 
     # Cosmetic adjustments for x-axis
     # plt.xlim(0.5, len(samples) + 0.5)
-    # plt.xticks(range(1, len(samples) + 1), [s["name"] for s in samples])
-    plt.ylabel("Value")
+    plt.xticks(range(1, len(box_names) + 1))
+    plt.ylabel("Diameter")
+    plt.xlabel("Box Number")
     plt.title("Box Data vs. Merlot Mean")
 
     # Place the legend outside the main plot area
@@ -308,84 +294,6 @@ def plot_z_test(sample, mu_0):
 def normalize_df(df):
     df_norm = (df - df.min()) / (df.max() - df.min())
     return df_norm
-
-def get_random_array(n:int, sample_size:int, replacement:bool):
-    sample_indices = np.random.choice(n, size=sample_size, replace=replacement)
-    return sample_indices
-
-def get_index_freq(indices):
-    # Get unique indices and their counts
-    unique_indices, counts = np.unique(indices, return_counts=True)
-    
-    # filter where count > 1
-    duplicate_indices = unique_indices[counts > 1]
-    duplicate_counts = counts[counts > 1]
-
-    dup_dict = dict(zip(duplicate_indices, duplicate_counts))
-    return dup_dict
-
-def do_sampling_stuff(df:pd.DataFrame, samp_rate:float):
-    mult_repl_freq = {}
-    num_runs = 100
-    n = df["diameter"].size
-
-    ## without replacement
-    means_wo = []
-    stdevs_wo = []
-    print("\n------  Without Replacements ------")
-    for _ in range(num_runs):
-        indices = get_random_array(n, int(samp_rate*n), False) 
-        rand_data = df.iloc[indices]['diameter']
-        # print(rand_data)
-        stats = confidence_interval2(rand_data, 0.95)
-        mean = stats['mean']
-        stdev = stats['stdev']
-        # print(f"Mean: {mean}, STDEV: {stdev} Interval: {stats['ci'][0]} --> {stats['ci'][1]}")
-        means_wo.append(mean)
-        stdevs_wo.append(stdev)
-    
-    means_wo = np.array(means_wo)
-    stdevs_wo = np.array(stdevs_wo)
-
-    print(f"Mean of means: {means_wo.mean()}")
-    print(f"Stdev of means: {means_wo.std()}")
-    print(f"Mean stdev: {stdevs_wo.mean()}")
-    print(f"Stdev of stdevs: {stdevs_wo.std()}")
-
-    ## TODO: Box and Whisker From this Data
-
-    ## with replacement
-
-    print("\n\n-------  With Replacements -------")
-    means_w = []
-    stdevs_w = []
-    freq_of_freqs = {}
-    for i in range(num_runs):
-        indices = get_random_array(n, int(samp_rate*n), True)
-        count_dict = get_index_freq(indices)
-        print(f"{i} - len: {len(count_dict)} - count_dict: {count_dict}")        
-        rand_data = df.iloc[indices]['diameter']
-        stats = confidence_interval2(rand_data, 0.95)
-        mean = stats['mean']
-        stdev = stats['stdev']
-        means_w.append(mean)
-        stdevs_w.append(stdev)
-        f = freq_of_freqs.get(len(count_dict),0)
-        freq_of_freqs[len(count_dict)] = f + 1
-
-    means_w = np.array(means_w)
-    stdevs_w = np.array(stdevs_w)
-
-    print(f"Mean of means: {means_w.mean()}")
-    print(f"Stdev of means: {means_w.std()}")
-    print(f"Mean stdev: {stdevs_w.mean()}")
-    print(f"Stdev of stdevs: {stdevs_w.std()}")
-    
-    # TODO: Box and Whisker from this data
-
-    print(f"freq_of_freqs: {freq_of_freqs}")
-
-    # TODO: Histogram from freq_of_freqs data
 
 
 def run_question_one():
@@ -487,6 +395,7 @@ def run_question_one():
     ## 
     plt.scatter([i for i in range(len(single_z))], single_z, marker='o', alpha=1, label="sample")
     plt.title("Grape individual z-test") 
+    plt.xticks(range(0, len(single_z)+1, 100))
     plt.xlabel("Grape Sample")
     plt.ylabel("z-val")
     # plt.legend()
@@ -497,6 +406,7 @@ def run_question_one():
     single_z_p_bin = [1 if pval < 0.05 else 0 for pval in single_z_p]
     plt.scatter([i for i in range(len(single_z_p_bin))], single_z_p_bin, marker='o', alpha=1, label="sample")
     plt.title("Grape individual p-value") 
+    plt.xticks(range(0, len(single_z_p_bin)+1, 100))
     plt.xlabel("Grape Sample")
     plt.ylabel("p-val")
     # plt.legend()
@@ -530,6 +440,42 @@ def run_question_one():
     plot_distance_heatmap(u_stats, title="Grape U-Test U Val", cmap="coolwarm", labels=box_names)
     plot_distance_heatmap(binary_u_p_values, title="Grape U-Test Binary P Val", cmap="coolwarm", labels=box_names)
     plot_distance_heatmap(u_p_values, title="Grape U-Test P Val", cmap="coolwarm", labels=box_names)
+
+
+def plot_conf_interval(df, stats, title='Lab4 Task3 Box Plot'):
+    plt.figure(figsize=(8, 6))
+    sns.stripplot(y='diameter', data=df, color='gray', size=4, jitter=True, alpha=0.4)
+    ax = sns.boxplot(y='diameter', data=df)
+    plt.axhline(stats['mean'], color='red', linestyle='--',
+                label=f"Mean = {stats['mean']:.2f}")
+    plt.axhline(stats['ci'][0], color='blue', linestyle='--',
+                label=f"CI Lower = {stats['ci'][0]:.2f}")
+    plt.axhline(stats['ci'][1], color='blue', linestyle='--',
+                label=f"CI Upper = {stats['ci'][1]:.2f}")
+    plt.legend()
+
+    # Customize Labels
+    plt.xlabel('')
+    plt.ylabel('Diameter (cm)')
+    plt.title(title)
+    plt.show()
+
+
+
+    # bins = [-4, -3, -2, -1, 1, 2, 3, 4]
+    # mat = [[],[],[],[],[],
+    #        [],[],[],[],[]]
+    # for val in df['diameter']:
+    #     z, _, _ = single_observation_z_test(val, stats['mean'], stats['stdev'])
+    #     new_z = int(z)
+    #     if new_z < -4:
+
+
+
+
+    # plt.hist(df['diameter'], bins=bins, edgecolor='black', alpha=0.7)
+    # plt.axvline(stats['mean'], color='red', linestyle='--',
+    #             label=f"Mean = {stats['mean']:.2f}")
 
 
 
@@ -581,7 +527,20 @@ def main():
     stats = confidence_interval(df, "diameter")
     print(f"Mean: {stats['mean']}")
     print(f"Stdev: {stats['stdev']}")
-    print(f"confidence interval: {stats['ci'][0]} --> {stats['ci'][1]}")
+    print(f"confidence interval (full): {stats['ci'][0]} --> {stats['ci'][1]}")
+
+    plot_conf_interval(df, stats, title='Lab4 Task3 Box Plot Full')
+
+    df = df[df['type'] == 1]  # Filter based on grape type
+    stats = confidence_interval(df, "diameter")
+    print(f"Mean: {stats['mean']}")
+    print(f"Stdev: {stats['stdev']}")
+    print(f"confidence interval (just merlot): {stats['ci'][0]} --> {stats['ci'][1]}")
+
+    plot_conf_interval(df, stats, title='Lab4 Task3 Box Plot Merlot Only')
+
+
+
 
 if __name__ == "__main__":
     main()
