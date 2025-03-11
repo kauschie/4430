@@ -123,7 +123,7 @@ def plot_surface(M, B, Z, title="Surface Plot", xlabel="X", ylabel="Y", zlabel="
 
 def main():
     # Read training data
-    x_vals, y_vals = read_training(training_path)
+    # x_vals, y_vals = read_training(training_path)
     print(f"Training Data: {x_vals}, {y_vals}")
 
     # Compute min/max slope with outlier filtering

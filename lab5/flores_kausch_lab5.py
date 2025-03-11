@@ -88,6 +88,7 @@ def confidence_interval(df: pd.DataFrame, column: str, confidence: float = 0.95)
 
     return {"mean":mean, "stdev":stdev, "ci":ci}
 
+
 def confidence_interval2(data, confidence: float = 0.95):
     """
     Computes the confidence interval for a given column in a Pandas DataFrame.
@@ -191,6 +192,24 @@ def plot_multiple_box_strip_subplots(data_arrays, labels=None, title="Box and St
     plt.show()
 
 
+def plot_conf_interval(df, stats, title='Lab5 Grape Simple Mean'):
+    plt.figure(figsize=(8, 6))
+    sns.stripplot(y='diameter', data=df, color='gray', size=4, jitter=True, alpha=0.4)
+    ax = sns.boxplot(y='diameter', data=df)
+    plt.axhline(stats['mean'], color='red', linestyle='--',
+                label=f"Mean = {stats['mean']:.2f}")
+    plt.axhline(stats['ci'][0], color='blue', linestyle='--',
+                label=f"CI Lower = {stats['ci'][0]:.2f}")
+    plt.axhline(stats['ci'][1], color='blue', linestyle='--',
+                label=f"CI Upper = {stats['ci'][1]:.2f}")
+    plt.legend()
+
+    # Customize Labels
+    plt.xlabel('')
+    plt.ylabel('Diameter (cm)')
+    plt.title(title)
+    plt.show()
+
 ##################################
 ##       Helper Functions       ##
 ##################################
@@ -293,7 +312,7 @@ def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     means_wo = []
     stdevs_wo = []
     epoch_f_wo = {}
-    print("\n------  Without Replacements ------")
+    print("\n------ Random Sampling Without Replacements ------")
     for _ in range(num_runs):
         indices = get_random_array(n, int(samp_rate*n), False) 
         epoch_f_wo = update_epoch_f(epoch_f_wo, indices)
@@ -308,48 +327,57 @@ def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     
     means_wo = np.array(means_wo)
     stdevs_wo = np.array(stdevs_wo)
-    num_not_sampled = n - len(epoch_f_wo)
 
-    print(f"Mean of means: {means_wo.mean()}")
-    print(f"Stdev of means: {means_wo.std()}")
-    print(f"Mean stdev: {stdevs_wo.mean()}")
-    print(f"Stdev of stdevs: {stdevs_wo.std()}")
+    stats = confidence_interval2(means_wo, 0.95)
+    print(f"Mean of means: {stats['mean']}")
+    print(f"Stdev of means: {stats['stdev']}")
+    print(f"Confidence Interval: {stats['ci'][0]} --> {stats['ci'][1]}")
+    stats = confidence_interval2(stdevs_wo, 0.95)
+    print(f"Mean stdev: {stats['mean']}")
+    print(f"Stdev of stdevs: {stats['stdev']}")
+    print(f"Confidence Interval Stdev: {stats['ci'][0]} --> {stats['ci'][1]}")
+    num_not_sampled = n - len(epoch_f_wo)
     print(f"Number of samples not-sampled (sr: {samp_rate*100}%): {num_not_sampled}")
+
 
     ## TODO: Box and Whisker From this Data
 
     ## with replacement
 
-    print("\n\n-------  With Replacements -------")
+    print("\n\n------- Random Sampling With Replacements -------")
     means_w = []
     stdevs_w = []
     freq_of_freqs = {}
     epoch_f_w = {}
     for i in range(num_runs):
         indices = get_random_array(n, int(samp_rate*n), True)
-        epoch_f_w = update_epoch_f(epoch_f_w, indices)
-        count_dict = get_index_freq(indices)
+        epoch_f_w = update_epoch_f(epoch_f_w, indices) # updates frequences with newly sampled
+        count_dict = get_index_freq(indices) # returns count_dict of indices sampled and their counts if > 1
         # print(f"{i} - len: {len(count_dict)} - count_dict: {count_dict}")        
-        rand_data = df.iloc[indices]['diameter']
+        rand_data = df.iloc[indices]['diameter'] # get just the samples
         stats = confidence_interval2(rand_data, 0.95)
         mean = stats['mean']
         stdev = stats['stdev']
-        means_w.append(mean)
-        stdevs_w.append(stdev)
-        f = freq_of_freqs.get(len(count_dict),0)
+        means_w.append(mean) # get list of means
+        stdevs_w.append(stdev) # list of stdevs
+        f = freq_of_freqs.get(len(count_dict),0) # update freq_of_freqs with count_dict
         freq_of_freqs[len(count_dict)] = f + 1
+
 
     means_w = np.array(means_w)
     stdevs_w = np.array(stdevs_w)
-    num_not_sampled = n - len(epoch_f_w)
 
-    print(f"Mean of means: {means_w.mean()}")
-    print(f"Stdev of means: {means_w.std()}")
-    print(f"Mean stdev: {stdevs_w.mean()}")
-    print(f"Stdev of stdevs: {stdevs_w.std()}")
+    stats = confidence_interval2(means_w, 0.95)
+    print(f"Mean of means: {stats['mean']}")
+    print(f"Stdev of means: {stats['stdev']}")
+    print(f"Confidence Interval: {stats['ci'][0]} --> {stats['ci'][1]}")
+    stats = confidence_interval2(stdevs_w, 0.95)
+    print(f"Mean stdev: {stats['mean']}")
+    print(f"Stdev of stdevs: {stats['stdev']}")
+    print(f"Confidence Interval Stdev: {stats['ci'][0]} --> {stats['ci'][1]}")
+    num_not_sampled = n - len(epoch_f_w)
     print(f"Number of samples not-sampled (sr: {samp_rate*100}%): {num_not_sampled}")
 
-    print(f"freq_of_freqs: {freq_of_freqs}")
 
     # Visualizations
 
@@ -415,8 +443,6 @@ def stratified_sampling2(df, sample_rate, stratify_cols=None, return_counts=Fals
     return sampled_df
 
 
-
-
 def stratified_sampling(df, sample_rate, stratify_cols=None):
     """
     Performs stratified sampling on a DataFrame.
@@ -448,10 +474,6 @@ def stratified_sampling(df, sample_rate, stratify_cols=None):
     
 
     return sampled_df.reset_index(drop=True)
-
-# TODO Strategic Sampling
-import pandas as pd
-import numpy as np
 
 def strategic_sampling(df: pd.DataFrame, sample_rate: float, offset: int, return_counts: bool = False):
     """
@@ -496,6 +518,13 @@ def main():
     ## Question 1: Random Sample 10% of the Data, how many are sampled twice?
     df_sampling = load_grape_data("./DataSampling_label_grape_data.txt", use_space=True)
 
+    stats = confidence_interval(df_sampling, "diameter")
+    mean = stats['mean']
+    stdev = stats['stdev']
+    print(f"Mean: {mean}, STDEV: {stdev} Interval: {stats['ci'][0]} --> {stats['ci'][1]}")
+    plot_conf_interval(df_sampling, stats, 'Lab5 Grape Simple Mean')
+
+
     sample_rate = 0.02
 
     do_random_sampling(df_sampling, 0.1)
@@ -524,15 +553,24 @@ def main():
         strat_stdevs = np.append(strat_stdevs, strat_stdev)
 
     # Stratified Samples Mean of Means and Mean of Stdev
-    print(f"Mean of means: {np.mean(strat_means)}")
-    print(f"Stdev of means: {np.std(strat_means)}")
-    print(f"Mean stdev: {np.mean(strat_stdevs)}")
-    print(f"Stdev of stdevs: {np.std(strat_stdevs)}")
+    strat_mean_stats = confidence_interval2(strat_means, 0.95)
+    strat_stdev_stats = confidence_interval2(strat_stdevs, 0.95)
+
+    print("\n\n------ Stratified Sampling Mean of Means ------")
+    print(f"Mean of means: {strat_mean_stats['mean']}")
+    print(f"Stdev of means: {strat_mean_stats['stdev']}")
+    print(f"Confidence Interval: {strat_mean_stats['ci'][0]} --> {strat_mean_stats['ci'][1]}")
+
+    print("\n\n------ Stratified Sampling Mean STDev ------")
+    print(f"Mean stdev: {strat_stdev_stats['mean']}")
+    print(f"Stdev of stdevs: {strat_stdev_stats['stdev']}")
+    print(f"Confidence Interval: {strat_stdev_stats['ci'][0]} --> {strat_stdev_stats['ci'][1]}")
+
 
 
     strat_sampling_df, counts = stratified_sampling2(df_sampling, sample_rate, ["type"], return_counts=True)
-    print(f"strat_sampling_df: {strat_sampling_df}")
-    # print(strat_sampling_df.head())
+    # print(f"strat_sampling_df: {strat_sampling_df}")
+    print(strat_sampling_df.head())
     print(f"counts: {counts}")
 
 
@@ -551,11 +589,11 @@ def main():
     # Sampling with no offset (starting at the first index)
     strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 0, return_counts=True)
     print(f'\nMean of Strategic Samples (offset = 0): {strategic_samples_df["diameter"].mean()}')
-    print(f"counts: {counts}")
+    # print(f"counts: {counts}")
     # Sampling with offset (starting at the second index)
     strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 1, return_counts=True)
     print(f'Mean of Strategic Samples (offset = 1): {strategic_samples_df["diameter"].mean()}\n')
-    print(f"counts: {counts}")
+    # print(f"counts: {counts}")
 
 
 
