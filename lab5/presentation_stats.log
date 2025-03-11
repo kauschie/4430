@@ -1,0 +1,125 @@
+Mean: 20.060631701853335, STDEV: 18.257196907551418 
+Interval: 19.135652045433957 --> 20.985611358272713
+
+------ Random Sampling Without Replacements ------
+Mean of means: 20.165065369898002
+Stdev of means: 1.423231011718093
+Confidence Interval: 19.881242781386135 --> 20.44888795840987
+Mean stdev: 18.329839209392997
+Stdev of stdevs: 0.7603893587776298
+Confidence Interval Stdev: 18.178201369640885 --> 18.48147704914511
+Number of samples not-sampled (sr: 10.0%): 0
+
+
+------- Random Sampling With Replacements -------
+Mean of means: 20.074866718252
+Stdev of means: 1.3136963803872732
+Confidence Interval: 19.81288766908128 --> 20.33684576742272
+Mean stdev: 18.222059394271326
+Stdev of stdevs: 0.6825152514100639
+Confidence Interval Stdev: 18.08595131079148 --> 18.358167477751174
+Number of samples not-sampled (sr: 10.0%): 0
+
+
+------ T-Test of Means Between With vs Without Replacement ------
+
+t-statistic: 0.4633635225628614, p-value: 0.643612746969001
+The means are NOT significantly different
+
+------ T-Test of Stdevs Between With vs Without Replacement ------
+
+t-statistic: 1.0495444126279132, p-value: 0.29520698110842025
+The stdevs are NOT significantly different
+
+
+------ Z-Test of Mean of Means Without Replacement to Population Mean (20.060631701853335 +/- 18.257196907551418)------
+Z-Score: 0.005720137027249335, P-Value: 0.9954360158691966, Significantly Different from Known Mean? False
+
+------ Z-Test of Mean of Means WITH Replacement to Population Mean (20.060631701853335 +/- 18.257196907551418)------
+Z-Score: 0.0007796934255979393, P-Value: 0.9993778947165879, Significantly Different from Known Mean? False
+
+
+
+
+------ Random Sampling Without Replacements ------
+Mean of means: 19.84296231559
+Stdev of means: 3.25149203592248
+Confidence Interval: 19.194545524104267 --> 20.491379107075733
+Mean stdev: 18.185663867592254
+Stdev of stdevs: 1.895610757233063
+Confidence Interval Stdev: 17.807638692832082 --> 18.563689042352426
+Number of samples not-sampled (sr: 2.0%): 198
+
+
+------- Random Sampling With Replacements -------
+Mean of means: 19.969499021503335
+Stdev of means: 3.5868288987356562
+Confidence Interval: 19.254208914551977 --> 20.684789128454693
+Mean stdev: 18.076134220956284
+Stdev of stdevs: 1.9074980973924507
+Confidence Interval Stdev: 17.69573845728484 --> 18.45652998462773
+Number of samples not-sampled (sr: 2.0%): 193
+
+
+------ T-Test of Means Between With vs Without Replacement ------
+
+t-statistic: -0.26006271368809675, p-value: 0.7950856317586658
+The means are NOT significantly different
+
+------ T-Test of Stdevs Between With vs Without Replacement ------
+
+t-statistic: 0.4052503550145772, p-value: 0.6857310158286531
+The stdevs are NOT significantly different
+
+
+------ Z-Test of Mean of Means Without Replacement to Population Mean (20.060631701853335 +/- 18.257196907551418)------
+Z-Score: -0.011922388051437626, P-Value: 0.9904875360019536, Significantly Different from Known Mean? False
+
+------ Z-Test of Mean of Means WITH Replacement to Population Mean (20.060631701853335 +/- 18.257196907551418)------
+Z-Score: -0.004991603081867768, P-Value: 0.9960172935062483, Significantly Different from Known Mean? False
+
+
+
+
+
+------ Stratified Sampling Mean of Means ------
+Mean of means: 20.03005104356333
+Stdev of means: 0.4868192461989678
+Confidence Interval: 19.932968913216275 --> 20.127133173910384
+
+
+------ Stratified Sampling Mean STDev ------
+Mean stdev: 18.55722985892175
+Stdev of stdevs: 0.31296686770259236
+Confidence Interval: 18.494817597118537 --> 18.619642120724965
+
+------ Stratified Sampling Comparison to Known Mean ------
+Z-Score: -0.0016749919741161114, P-Value: 0.9986635503893075, Significantly Different from Known Mean? False
+
+Number of samples per group in Stratefied Sampling:
+counts: type
+2    20
+3     8
+1     2
+Name: count, dtype: int64
+
+
+------ Systematic Sampling ------
+Systematic Sampling (offset = 0) Comparison to Known Mean:
+
+Mean of Systematic Samples (offset = 0): 20.940265506333336
+Z-Score: 0.04818011269386993, P-Value: 0.9615726995497096, Significantly Different from Known Mean? False
+Number of samples per group in : type
+2    20
+3     8
+1     2
+Name: count, dtype: int64
+
+Systematic Sampling (offset = 1) Comparison to Known Mean:
+Mean of Systematic Samples (offset = 1): 19.87257626633333
+Z-Score: -0.010300345473199335, P-Value: 0.991781658699975, Significantly Different from Known Mean? False
+Number of samples per group in : type
+2    20
+3     8
+1     2
+Name: count, dtype: int64
