@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import scipy.stats as stats
+from scipy.stats import ttest_ind, norm
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -112,6 +113,28 @@ def confidence_interval2(data, confidence: float = 0.95):
     
 
     return {"mean":mean, "stdev":stdev, "ci":ci}
+
+
+def single_observation_z_test(x, mu_0, sigma, alpha=0.05):
+    """
+    Check if a single observation x differs significantly
+    from a hypothesized normal distribution (mean=mu_0, sd=sigma).
+
+    Returns:
+        z_value: float
+        p_value: float
+        significant: bool (True if p < alpha)
+    """
+    # Compute z
+    z_value = (x - mu_0) / sigma
+    
+    # Two-sided p-value
+    p_value = 2 * (1 - norm.cdf(abs(z_value)))
+    
+    # Compare p-value with significance level alpha
+    significant = (p_value < alpha)
+    
+    return z_value, p_value, significant
 
 
 #### Plotting Functions
@@ -304,7 +327,7 @@ def get_index_freq(indices):
 def do_striated_sampling(df:pd.DataFrame, samp_rate:float):
     pass
 
-def do_random_sampling(df:pd.DataFrame, samp_rate:float):
+def do_random_sampling(df:pd.DataFrame, samp_rate:float, pop_mean:float = None, pop_stdev:float = None):
     num_runs = 100
     n = df["diameter"].size
 
@@ -397,6 +420,42 @@ def do_random_sampling(df:pd.DataFrame, samp_rate:float):
     plot_frequency_histogram(freq_of_freqs, title=frequency_plot_title, xlabel="Duplicate Samples", ylabel="Count")
 
 
+
+
+    ## T-Test of Means between With vs Without Replacement
+    t_stat, p_val = ttest_ind(means_wo, means_w)
+    print("\n\n------ T-Test of Means Between With vs Without Replacement ------")
+    print(f"\nt-statistic: {t_stat}, p-value: {p_val}")
+    if (p_val < 0.05):
+        print("The means are significantly different")
+    else:
+        print("The means are NOT significantly different")
+
+    ## Z-test of means between With vs Without Replacement
+    if pop_mean is not None and pop_stdev is not None:
+        print(f"\n------ Z-Test of Mean of Means Without Replacement to Population Mean ({pop_mean} +/- {pop_stdev})------")
+        z_score, p_val, sig = single_observation_z_test(means_wo.mean(), pop_mean, pop_stdev)
+        print(f"Z-Score: {z_score}, P-Value: {p_val}, Significantly Different from Known Mean? {sig}")
+
+    ## T-Test of Stdevs between With vs Without Replacement
+    t_stat, p_val = ttest_ind(stdevs_wo, stdevs_w)
+    print("\n\n------ T-Test of Stdevs Between With vs Without Replacement ------")
+    print(f"\nt-statistic: {t_stat}, p-value: {p_val}")
+    if (p_val < 0.05):
+        print("The stdevs are significantly different")
+    else:
+        print("The stdevs are NOT significantly different")
+
+    ## Z-test of means between With vs Without Replacement
+    if pop_mean is not None and pop_stdev is not None:
+        print(f"\n------ Z-Test of Mean of Means WITH Replacement to Population Mean ({pop_mean} +/- {pop_stdev})------")
+        z_score, p_val, sig = single_observation_z_test(means_w.mean(), pop_mean, pop_stdev)
+        print(f"Z-Score: {z_score}, P-Value: {p_val}, Significantly Different from Known Mean? {sig}")
+
+    print("\n\n")
+
+
+
 def stratified_sampling2(df, sample_rate, stratify_cols=None, return_counts=False):
     """
     Performs stratified sampling on a DataFrame.
@@ -475,7 +534,7 @@ def stratified_sampling(df, sample_rate, stratify_cols=None):
 
     return sampled_df.reset_index(drop=True)
 
-def strategic_sampling(df: pd.DataFrame, sample_rate: float, offset: int, return_counts: bool = False):
+def systematic_sampling(df: pd.DataFrame, sample_rate: float, offset: int, return_counts: bool = False):
     """
     Performs systematic sampling by selecting evenly spaced samples from the DataFrame.
 
@@ -525,18 +584,31 @@ def main():
     plot_conf_interval(df_sampling, stats, 'Lab5 Grape Simple Mean')
 
 
+
+
+    ###################################
+    ###### Random Sampling ########
+    ###################################
+
+
+    do_random_sampling(df_sampling, 0.1, mean, stdev)
+    do_random_sampling(df_sampling, 0.02, mean, stdev)
+
+
+
+    ###################################
+    ###### Stratified Sampling ########
+    ###################################
+
+
     sample_rate = 0.02
-
-    do_random_sampling(df_sampling, 0.1)
-    do_random_sampling(df_sampling, 0.02)
-
-
-
-    # Stratified Sampling
-
     # Create empty list of means and stdevs
     strat_means  = np.array([])
     strat_stdevs = np.array([])
+
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
+    #  oOo ~~~> Sample's Comparison to the knonw mean of the population <~~~ oOo
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
 
     for _ in range(100):
         # Get stratified samples
@@ -552,6 +624,10 @@ def main():
         strat_means = np.append(strat_means, strat_mean)
         strat_stdevs = np.append(strat_stdevs, strat_stdev)
 
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
+    #  oOo         ~~~> Stats on 100 Random Stratified Samples          <~~~ oOo
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
+
     # Stratified Samples Mean of Means and Mean of Stdev
     strat_mean_stats = confidence_interval2(strat_means, 0.95)
     strat_stdev_stats = confidence_interval2(strat_stdevs, 0.95)
@@ -566,15 +642,24 @@ def main():
     print(f"Stdev of stdevs: {strat_stdev_stats['stdev']}")
     print(f"Confidence Interval: {strat_stdev_stats['ci'][0]} --> {strat_stdev_stats['ci'][1]}")
 
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
+    #  oOo ~~~> Sample's Comparison to the known mean of the population <~~~ oOo
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
 
+    print("\n------ Stratified Sampling Comparison to Known Mean ------")
+    z_score, p_val, sig = single_observation_z_test(strat_mean_stats['mean'], mean, stdev)
+    print(f"Z-Score: {z_score}, P-Value: {p_val}, Significantly Different from Known Mean? {bool(sig)}")
 
     strat_sampling_df, counts = stratified_sampling2(df_sampling, sample_rate, ["type"], return_counts=True)
     # print(f"strat_sampling_df: {strat_sampling_df}")
-    print(strat_sampling_df.head())
+    print("\nNumber of samples per group in Stratefied Sampling:")
+    # print(strat_sampling_df.head())
     print(f"counts: {counts}")
 
 
-    # Boxplot Visualization
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
+    #  oOo ~~~> Visualization <~~~ oOo
+    #  oOoOoOoOoOoOoOoOoOoOoOoOoOoOoOo
     mean_title   = "Stratified Sampling Boxplot of Means (Sample Rate: " + str(sample_rate) + ")"
     stdev_title  = "Stratified Sampling Boxplot of Stdevs (Sample Rate: " + str(sample_rate) + ")"
 
@@ -583,17 +668,32 @@ def main():
 
 
 
+    ###################################
+    ###### Systematic Sampling ########
+    ###################################
 
-    # Strategic Sampling
+
+    print("\n\n------ Systematic Sampling ------")
 
     # Sampling with no offset (starting at the first index)
-    strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 0, return_counts=True)
-    print(f'\nMean of Strategic Samples (offset = 0): {strategic_samples_df["diameter"].mean()}')
-    # print(f"counts: {counts}")
+    systematic_samples_df, counts = systematic_sampling(df_sampling, 0.02, 0, return_counts=True)
+    m = systematic_samples_df["diameter"].mean()
+    print("Systematic Sampling (offset = 0) Comparison to Known Mean:")
+    print(f'\nMean of Systematic Samples (offset = 0): {m}')
+    z_score, p_val, sig = single_observation_z_test(m, mean, stdev)
+    print(f"Z-Score: {z_score}, P-Value: {p_val}, Significantly Different from Known Mean? {sig}")
+    print(f"Number of samples per group in : {counts}")
+
+
+
     # Sampling with offset (starting at the second index)
-    strategic_samples_df, counts = strategic_sampling(df_sampling, 0.02, 1, return_counts=True)
-    print(f'Mean of Strategic Samples (offset = 1): {strategic_samples_df["diameter"].mean()}\n')
-    # print(f"counts: {counts}")
+    systematic_samples_df, counts = systematic_sampling(df_sampling, 0.02, 1, return_counts=True)
+    m = systematic_samples_df["diameter"].mean()
+    z_score, p_val, sig = single_observation_z_test(m, mean, stdev)
+    print("\nSystematic Sampling (offset = 1) Comparison to Known Mean:")
+    print(f'Mean of Systematic Samples (offset = 1): {m}')
+    print(f"Z-Score: {z_score}, P-Value: {p_val}, Significantly Different from Known Mean? {sig}")
+    print(f"Number of samples per group in : {counts}")
 
 
 
