@@ -59,6 +59,18 @@ def read_ds(filepath):
 ##   Statistical Dependency Functions   ##
 ##########################################
 
+def compute_eucledian_distance(df):
+    """Computes the Euclidean distance between each pair of features."""
+    num_features = df.shape[1]  # Number of columns
+    eucledian_distance_matrix = pd.DataFrame(index=df.columns, columns=df.columns)
+
+    for i in range(num_features):
+        for j in range(num_features):
+            x, y = df.iloc[:, i], df.iloc[:, j]
+            eucledian_distance_matrix.iloc[i, j] = np.linalg.norm(x - y)
+
+    return eucledian_distance_matrix.astype(float)
+
 def compute_correlations(df):
     """Computes Pearson and Spearman correlation matrices."""
     pearson_corr = df.corr(method="pearson")
@@ -490,27 +502,32 @@ def main():
     ## Question 2 stuff
     army_attribute_path = "army_attribute_data.csv"
     df = load_army_data(army_attribute_path)
-
+    df_norm = normalize_df(df)
+    # print(df_norm)
     if df is not None:
         pcc_matrix, src_matrix = compute_correlations(df)
         distance_corr_matrix = compute_distance_correlation(df)
+        euclidean_distance_matrix = compute_eucledian_distance(df)
+        normalized_euclidean_distance_matrix = compute_eucledian_distance(df_norm)
 
         print("Pearson Correlation:\n", pcc_matrix)
         print("\nSpearman Correlation:\n", src_matrix)
         print("\nDistance Correlation:\n", distance_corr_matrix)
+        print("\nEuclidean Distance:\n", euclidean_distance_matrix)
 
         # Heatmaps
         plot_distance_heatmap(pcc_matrix, title="Army Features PCC Heatmap", vmin=-1, vmax=1, titles=df.columns, annot=True)
         plot_distance_heatmap(src_matrix, title="Army Features SRC Heatmap", vmin=-1, vmax=1, titles=df.columns, annot=True)
         plot_distance_heatmap(distance_corr_matrix, title="Distance Correlation Heatmap", vmin=0, vmax=1, titles=df.columns, annot=True)
+        plot_distance_heatmap(euclidean_distance_matrix, title="Non-Normalized Euclidean Distance Heatmap", titles=df.columns, annot=True)
+        plot_distance_heatmap(normalized_euclidean_distance_matrix, title="Normalized Euclidean Distance Heatmap", titles=df.columns, annot=True)
 
     else:
         print("Failed to load data.")
 
 
     # min/max normalization on data set
-    df_norm = normalize_df(df)
-    print(df_norm)
+
     plot_3d_scatter(df_norm)        # viewed all 3 together 3d
     plot_2d_scatter(df, "feature 1", "feature 2") # can see positive trend in data
     plot_2d_scatter(df, "feature 1", "feature 3") # can see their linear relationship creates a line
