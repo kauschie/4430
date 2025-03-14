@@ -52,8 +52,8 @@ def get_f_val(df, val):
     f1 = 2 * ((precision * recall) / (precision + recall+epsilon))
 
     # TPR and FPR are also useful metrics
-    tpr = tp / (tp + fn)
-    fpr = fp / (fp + tn)
+    tpr = tp / (tp + fn) # just recall?
+    fpr = fp / (fp + tn)    
     return f1, accuracy, precision, recall, tpr, fpr
 
 def area_under_curve(x_vals, y_vals):
@@ -79,7 +79,52 @@ def area_under_curve(x_vals, y_vals):
     
     return auc
 
+def auc_rect(x_vals, y_vals):
+    """
+    Computes auc using rectangles instead of trapezoids
 
+    Parameters:
+        x_vals: false positive rate (x-axis)
+        y_vals: true positive rate (height of rectangle)
+
+    Return:
+        float: area under curve using rect. method
+
+    """
+
+    # right riemann sum (underestimate)
+    sum1 = 0
+    for i in range(len(x_vals)-1):
+        sum1 += (y_vals[i] * abs(x_vals[i+1]-x_vals[i])) # calc width of rectangle by finding delta
+    
+    # left riemann sum (overestimate)
+    sum2 = 0
+    for i in range(1,len(x_vals)):
+        sum2 += (y_vals[i] * abs(x_vals[i]-x_vals[i-1]))
+
+    # return average    
+    return (sum1+sum2)/2.0
+
+
+
+def precision_recall_curve(precisions, recalls):
+    """
+    Plots the precision-recall curve
+
+    Parameters:
+    - precisions (list of float): List of precision values.
+    - recalls (list of float): List of recall values.
+
+    Returns:
+     - Nothing
+
+    """
+    
+    plt.scatter(recalls, precisions, marker='.', alpha=0.8, label="Precision-Recall Curve")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.legend()
+    plt.show()
 
 def main():
 
@@ -87,8 +132,8 @@ def main():
 
     min_val = df.iloc[:,0].min()
     max_val = df.iloc[:,0].max()
-    print(min_val)
-    print(max_val)
+    print(f"min_val: {min_val}")
+    print(f"max_val: {max_val}")
 
     d_list = []
     f_list = []
@@ -100,19 +145,23 @@ def main():
     tpr_list = []
     fpr_list = []
 
-    d = 1
+    d = min_val
     delta = .1
-    while d < max_val:
-        f1, acc, prec, rec, tpr, fpr = get_f_val(df, d)
-        d_list.append(d)
-        f_list.append(f1)
-        acc_list.append(acc)
-        prec_list.append(prec)
-        rec_list.append(rec)
-        # Append to Tpr and Fpr
-        tpr_list.append(tpr)
-        fpr_list.append(fpr)
-        d += delta
+
+    num_iter = int((max_val - min_val) / delta)
+    with tqdm.tqdm(total=num_iter) as pbar:
+        while d < max_val:
+            f1, acc, prec, rec, tpr, fpr = get_f_val(df, d)
+            d_list.append(d)
+            f_list.append(f1)
+            acc_list.append(acc)
+            prec_list.append(prec)
+            rec_list.append(rec)
+            # Append to Tpr and Fpr
+            tpr_list.append(tpr)
+            fpr_list.append(fpr)
+            d += delta
+            pbar.update(1)
 
     # Scatter Plot
     plt.plot(d_list, f_list, marker='', alpha=0.8, label="f1 vals")
@@ -125,6 +174,10 @@ def main():
     plt.legend()
     plt.show()
 
+
+    # Precision Recall Curve
+    precision_recall_curve(prec_list, rec_list)
+
     # ROC Curve
     plt.plot(fpr_list, tpr_list, marker='', alpha=0.8, label="ROC Curve")
     plt.xlabel("FPR")
@@ -132,9 +185,18 @@ def main():
     plt.legend()
     plt.show()
 
+    # ROC Scatter Plot
+    plt.scatter(fpr_list, tpr_list, marker='.', alpha=0.8, label="ROC Curve")
+    plt.xlabel("FPR")
+    plt.ylabel("TPR")
+    plt.legend()
+    plt.show()
+
     # Caluclate the area under the curve using a function area_under_curve(fpr, tpr)
+    auc2 = auc_rect(fpr_list, tpr_list)
+    print(f"AUC (rectangle): {auc2}")
     auc = area_under_curve(fpr_list, tpr_list)
-    print(f"AUC: {auc}")
+    print(f"AUC (trapezoid): {auc}")
 
 if __name__ == "__main__":
     main()
