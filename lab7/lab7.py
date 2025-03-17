@@ -121,6 +121,44 @@ def plot_surface(M, B, Z, title="Surface Plot", xlabel="X", ylabel="Y", zlabel="
     plt.show()
 
 
+def optimized_get_weights(min_m, max_m, min_b, max_b, loss = None):
+    global x_vals
+    global y_vals
+    delta = 0.000001
+
+    m_range = max_m - min_m
+    b_range = max_b - min_b
+    #  |--x--|--x--|--x--|
+    #  min               max
+    #  0                 10
+    m_vals = [(m_range)*(1/6)+min_m,(m_range)*0.5+min_m, (m_range)*(5/6)+min_m]
+    b_vals = [(b_range)*(1/6)+min_b,(b_range)*0.5+min_b, (b_range)*(5/6)+min_b]
+
+    best_m = None
+    best_b = None
+
+    best_sse = None
+
+    for i in range(len(m_vals)):
+        for j in range(len(b_vals)):
+            m = m_vals[i]
+            b = b_vals[j]
+            mse = sse(x_vals, y_vals, m, b)
+            if best_sse is None or mse < best_sse:
+                best_sse = mse
+                best_m = i
+                best_b = j
+
+    new_min_m = (best_m/6)*(m_range)+min_m
+    new_max_m = ((best_m+1)/6)*(m_range)+min_m
+    new_min_b = (best_b/6)*(b_range)+min_b
+    new_max_b = ((best_b+1)/6)*(b_range)+min_b
+
+    if loss is None or abs(best_sse - loss) > delta:
+        return optimized_get_weights(new_min_m, new_max_m, new_min_b, new_max_b, loss)
+
+    return best_m, best_b
+
 def main():
     # Read training data
     # x_vals, y_vals = read_training(training_path)
