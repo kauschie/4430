@@ -106,14 +106,51 @@ def auc_rect(x_vals, y_vals):
     return (sum1+sum2)/2.0
 
 
+def calc_best_cutoff(precisions, recalls):
+    """
+    Calculates the best cutoff for a given precision-recall curve
+    inputs:
+        precisions: list of precision values
+        recalls: list of recall values
+    returns:
+        index of best cutoff
+    """
+    index = None
+    for i in range(len(recalls)):
+        if precisions[i] > recalls[i]:
+            index = i
+            break
+    return index
 
-def precision_recall_curve(precisions, recalls):
+def calc_auc_cutoff(tpr_list, fpr_list):
+    """
+    Calculates best cutoff that's closest to (0,1) on the ROC curve
+    inputs:
+        tpr_list: list of tpr values
+        fpr_list: list of fpr values
+    returns:
+        index of best cutoff
+    """
+    index = None
+    best = 0
+    best_index = None
+    for i in range(len(tpr_list)):
+        youdens_j = tpr_list[i] - fpr_list[i]
+        if youdens_j > best:
+            best = youdens_j
+            best_index = i
+    return best_index
+            
+
+def precision_recall_curve(precisions, recalls, best_cutoff_index, youdens_cutoff_index):
     """
     Plots the precision-recall curve
 
     Parameters:
     - precisions (list of float): List of precision values.
     - recalls (list of float): List of recall values.
+    - best_cutoff_index (int): Index of best cutoff (recall x precision)
+    - youdens_cutoff_index (int): Index of best cutoff that's closest to (0,1) on the ROC curve
 
     Returns:
      - Nothing
@@ -121,10 +158,15 @@ def precision_recall_curve(precisions, recalls):
     """
     
     plt.scatter(recalls, precisions, marker='.', alpha=0.8, label="Precision-Recall Curve")
+    plt.scatter(recalls[best_cutoff_index], precisions[best_cutoff_index], marker='*', color='red', label="Precision-Recall Intersection Cutoff") 
+    plt.scatter(recalls[youdens_cutoff_index], precisions[youdens_cutoff_index], marker='*', color='green', label="Youden's Best Cutoff") 
     plt.xlabel("Recall")
     plt.ylabel("Precision")
+    # plt.xlim(0,1)
+    # plt.ylim(0,1)
     plt.legend()
     plt.show()
+    
 
 def main():
 
@@ -146,7 +188,7 @@ def main():
     fpr_list = []
 
     d = min_val
-    delta = .1
+    delta = .01
 
     num_iter = int((max_val - min_val) / delta)
     with tqdm.tqdm(total=num_iter) as pbar:
@@ -163,32 +205,65 @@ def main():
             d += delta
             pbar.update(1)
 
+    print(f"Number of points: %d", len(d_list))
+
+    best_cutoff_index = calc_best_cutoff(prec_list, rec_list)
+    best_cutoff = d_list[best_cutoff_index]
+    youdens_cutoff_index = calc_auc_cutoff(tpr_list, fpr_list)
+    youdens_cutoff = d_list[youdens_cutoff_index]
+    
     # Scatter Plot
     plt.plot(d_list, f_list, marker='', alpha=0.8, label="f1 vals")
     plt.plot(d_list, acc_list, marker='', alpha=0.8, label="accuracy")
     plt.plot(d_list, prec_list, marker='', alpha=0.8, label="precision")
     plt.plot(d_list, rec_list, marker='', alpha=0.8, label="recall")
+    plt.scatter(best_cutoff, prec_list[best_cutoff_index], marker='*', color='red', label="Precision-Recall Intersection Cutoff")
+    plt.scatter(youdens_cutoff, prec_list[youdens_cutoff_index], marker='*', color='green', label="Youden's Best Cutoff")
+    plt.scatter(youdens_cutoff, rec_list[youdens_cutoff_index], marker='*', color='green', label="Youden's Best Cutoff")
     # plt.title("f1 val by distance cutoff")
     plt.xlabel("y-hat distance cutoff")
     # plt.ylabel("f1 (cm)")
+    # plt.xlim(0,1)
+    # plt.ylim(0,1)
     plt.legend()
     plt.show()
 
 
+    
+    print(f"Best cutoff index: {best_cutoff_index}")
+    print(f"Best cutoff: {best_cutoff}")
+    print(f"Youden's Best cutoff index: {youdens_cutoff_index}")
+    print(f"Youden's Best cutoff: {youdens_cutoff}")
+
     # Precision Recall Curve
-    precision_recall_curve(prec_list, rec_list)
+    precision_recall_curve(prec_list, rec_list, best_cutoff_index, youdens_cutoff_index)
+    print(f"Precision: {prec_list[best_cutoff_index]}")
+    print(f"Recall: {rec_list[best_cutoff_index]}")
+    print(f"fpr at intersect cutoff: {fpr_list[best_cutoff_index]}")
+    print(f"tpr at instersect cutoff: {tpr_list[best_cutoff_index]}")
+    print(f"fpr at youdens cutoff: {fpr_list[youdens_cutoff_index]}")
+    print(f"tpr at youdens cutoff: {tpr_list[youdens_cutoff_index]}")
+
 
     # ROC Curve
     plt.plot(fpr_list, tpr_list, marker='', alpha=0.8, label="ROC Curve")
+    plt.plot([0,1], [0,1], color='black', linestyle='--', label="Random Guessing")
+    plt.scatter(fpr_list[best_cutoff_index], tpr_list[best_cutoff_index], marker='*', color='red', label="Precision-Recall Intersection Cutoff")
+    plt.scatter(fpr_list[youdens_cutoff_index], tpr_list[youdens_cutoff_index], marker='*', color='green', label="Youden's Best Cutoff")
     plt.xlabel("FPR")
     plt.ylabel("TPR")
+    # plt.xlim(0,1)
+    # plt.ylim(0,1)
     plt.legend()
     plt.show()
 
     # ROC Scatter Plot
     plt.scatter(fpr_list, tpr_list, marker='.', alpha=0.8, label="ROC Curve")
+    # plt.scatter(fpr_list[best_cutoff_index], tpr_list[best_cutoff_index], marker='*', color='red', label="Best Cutoff")
     plt.xlabel("FPR")
     plt.ylabel("TPR")
+    # plt.xlim(0,1)
+    # plt.ylim(0,1)
     plt.legend()
     plt.show()
 
