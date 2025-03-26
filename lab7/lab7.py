@@ -84,8 +84,8 @@ def find_intercept_range(x_vals, y_vals, m_min, m_max):
     y_min, y_max = min(y_vals), max(y_vals)
     x_min, x_max = min(x_vals), max(x_vals)
 
-    b_min = y_min - m_max * x_min  # Using max slope
-    b_max = y_max - m_min * x_max  # Using min slope
+    b_min = y_min - m_max * x_max  # Using max slope
+    b_max = y_max - m_min * x_min  # Using min slope
 
     return b_min, b_max
 
@@ -299,81 +299,6 @@ def grid_search(min_m, max_m, min_b, max_b, start_m=None, start_b=None, num_cell
     
     return best_m, best_b, min_m, max_m, min_b, max_b, m_path, b_path, eval_path, num_iterations
 
-    # return (min_m + max_m) / 2, (min_b + max_b) / 2, min_m, max_m, min_b, max_b
-
-
-# def greedy_search(x_vals, y_vals, min_m, max_m, min_b, max_b, start_m=None, start_b=None):
-#     # Choose evaluation function
-#     global evaluation
-
-#     if evaluation == "SSE":
-#         evaluation_fn = sse  # sse should be defined elsewhere
-#     elif evaluation == "SAE":
-#         evaluation_fn = sae  # sae should be defined elsewhere
-#     else:
-#         raise ValueError("Invalid evaluation function")
-    
-#     # Convert bounds to Decimal for precision arithmetic
-#     max_precision = .001
-
-#     # Initialize starting point
-#     if start_m is None:
-#         best_m = random.uniform(float(min_m), float(max_m))
-#     else:
-#         best_m = start_m
-#     if start_b is None:
-#         best_b = random.uniform(float(min_b), float(max_b))
-#     else:
-#         best_b = start_b
-
-#     best_error = evaluation_fn(x_vals, y_vals, best_m, best_b)
-
-#     # Start with a base precision (e.g., 1.0)
-#     dp = 1.0
-#     total_iterations = 0
-#     prev_error = sys.maxsize
-
-#     # Outer loop: continue until the smallest step size is reached
-#     # while dp > max_precision:
-#     while abs(prev_error - best_error) > epsilon:
-#         prev_error = best_error
-#         # Loop over multipliers from 9 down to 1 for current precision
-#         # for counter in range(9, 0, -1):
-#         improved = True
-#         print(f"\nTrying dp: {dp}")
-#         # Keep searching at this dp until no further improvements are found
-#         curr_iterations = 0
-#         prev_prec_error = sys.maxsize
-
-#         while improved:
-#         # while abs(prev_prec_error - best_error) > epsilon:
-#             prev_prec_error = best_error
-#             improved = False
-#             total_iterations += 1
-#             curr_iterations += 1
-#             # Define the 3x3 grid of neighbors using the current dp
-#             neighbors = [
-#                 (best_m - dp, best_b + dp), (best_m, best_b + dp), (best_m + dp, best_b + dp),
-#                 (best_m - dp, best_b),     (best_m, best_b),     (best_m + dp, best_b),
-#                 (best_m - dp, best_b - dp), (best_m, best_b - dp), (best_m + dp, best_b - dp)
-#             ]
-            
-#             for m, b in neighbors:
-#                 error = evaluation_fn(x_vals, y_vals, m, b)
-#                 if error < best_error:
-#                     best_error = error
-#                     best_m, best_b = m, b
-#                     improved = True
-#                     print(f"\rtotal iterations: {total_iterations} | current iterations: {curr_iterations} | error: {best_error:.6f} | m: {best_m:.6f}, b: {best_b:.6f}", end="")  
-#                     break  # restart search from the new best point
-#         # After testing all multipliers at this precision, reduce precision for a finer search
-#         dp /= 10
-    
-#     data = [best_m, best_b, best_error]
-#     return data, total_iterations
-
-
-import random
 
 def greedy_search(x_vals, y_vals, min_m, max_m, min_b, max_b, start_m=None, start_b=None, epsilon = 1E-4, max_precision = 1E-3):
     # Choose evaluation function from global 'evaluation'
@@ -442,11 +367,17 @@ def greedy_search(x_vals, y_vals, min_m, max_m, min_b, max_b, start_m=None, star
             # Evaluate all neighbors to find the best improvement
             for m_candidate, b_candidate in neighbors:
                 error = evaluation_fn(x_vals, y_vals, m_candidate, b_candidate)
-                improvement = best_error - error  # Positive improvement means error is reduced
-                if improvement > best_local_improvement:
-                    best_local_improvement = improvement
-                    best_candidate = (m_candidate, b_candidate)
-                    candidate_error = error
+
+                if evaluation != "term":
+                    improvement = best_error - error  # Positive improvement means error is reduced
+                    if improvement > best_local_improvement:
+                        best_local_improvement = improvement
+                        best_candidate = (m_candidate, b_candidate)
+                        candidate_error = error
+                else:
+                    improvement = error - best_error
+                    if improvement > best_local_improvement:
+                        pass
             
             # If an improvement was found, update best parameters and record the improvement
             if best_candidate is not None and best_local_improvement > 0:
@@ -567,7 +498,7 @@ def plot_all_paths(vec_of_mpaths, vec_of_bpaths, vec_of_evals):
     for i in range(len(vec_of_mpaths)):
         plt.plot(vec_of_mpaths[i], vec_of_bpaths[i], marker='', alpha=0.2, linewidth=2, label=f"Path {i}")
         plt.scatter(vec_of_mpaths[i][0], vec_of_bpaths[i][0], marker='o', color='red', alpha=.8, s=30, label=f"a/b path {i}")
-        plt.scatter(vec_of_mpaths[i][-1], vec_of_bpaths[i][-1], marker='*', color='black', alpha=.8,s=30, label=f"a/b path {i}")
+        plt.scatter(vec_of_mpaths[i][-1], vec_of_bpaths[i][-1], marker='*', color='black', alpha=.8,s=10, label=f"a/b path {i}")
     plt.title("All Paths")
     plt.xlabel("m")
     plt.ylabel("b")
@@ -650,10 +581,10 @@ def iterative_search(min_m, max_m, min_b, max_b, evaluation="SSE"):
     print(f"Min {evaluation}: m = {min_error[0]}, b = {min_error[1]}, error = {min_error[2]}")
 
     # Generate heatmaps
-    heatmap(error_mat, m_range, b_range, title="SAE Heatmap", colorbar_title="Sum of Absolute Errors", cmap="inferno", global_min=min_error)
+    heatmap(error_mat, m_range, b_range, title="SSE Heatmap", colorbar_title="Sum of Squared Errors", cmap="inferno", global_min=min_error)
 
     # Plot SAE Surface
-    plot_surface(M, B, error_mat, title="Sum of Absolute Errors (SAE) Surface Plot", 
+    plot_surface(M, B, error_mat, title="Sum of Squared Errors (SSE) Surface Plot", 
                  xlabel="Slope (a)", ylabel="Intercept (b)", zlabel=f"{evaluation}")
 
     return min_error, iterations
@@ -669,15 +600,15 @@ def main():
     # # Read Validation Data
     x_valid, y_valid = read_validation(testing_path, results_path)
     
-    # # print("\n\n------  Iterative Search ------\n")
-    # # # min_sae = iterative_search(min_m, max_m, min_b, max_b, evaluation="SAE")
-    # # min_sse = iterative_search(min_m, max_m, min_b, max_b, evaluation="SSE")
+    print("\n\n------  Iterative Search ------\n")
+    # min_sae = iterative_search(min_m, max_m, min_b, max_b, evaluation="SAE")
+    min_sse, iterations = iterative_search(min_m, max_m, min_b, max_b, evaluation="SSE")
 
-    # # # valid_sae = sae(x_valid, y_valid, min_sae[0], min_sae[1])
-    # # valid_sse = sse(x_valid, y_valid, min_sse[0], min_sse[1])
-    # # print(f"\nValidation Results:")
-    # # # print(f"Min SAE: m = {min_sae[0]}, b = {min_sae[1]}, error = {valid_sae}")
-    # # print(f"Min SSE: m = {min_sse[0]}, b = {min_sse[1]}, error = {valid_sse}")
+    # valid_sae = sae(x_valid, y_valid, min_sae[0], min_sae[1])
+    valid_sse = sse(x_valid, y_valid, min_sse[0], min_sse[1])
+    print(f"\nValidation Results:")
+    # print(f"Min SAE: m = {min_sae[0]}, b = {min_sae[1]}, error = {valid_sae}")
+    print(f"Min SSE: m = {min_sse[0]}, b = {min_sse[1]}, error = {valid_sse}")
 
 
     # print(f"\n------  Grid Search ------")
@@ -782,6 +713,16 @@ def main():
 
     print(f"Mean Greedy Iterations: {np.mean(greedy_iterations)}")
     print(f"Std Dev of Greedy Iterations: {np.std(greedy_iterations)}")
+    print(f"Max Greedy Iterations: {max(greedy_iterations)}")
+    print(f"Min Greedy Iterations: {min(greedy_iterations)}")
+    print(f"Iterations Range: {max(greedy_iterations) - min(greedy_iterations)}")
+    print(f"Best Greedy SSE: {best_greedy_eval}")
+    print(f"Worst Greedy SSE: {worst_greedy_eval}")
+    print(f"Max-Min Greedy SSE: {best_greedy_eval - worst_greedy_eval}")
+    print(f"Iterations of Best: {greedy_iterations[best_greedy_index]}")
+    print(f"Iterations of Worst: {greedy_iterations[worst_greedy_index]}")
+    print(f"Iterations of Best - Worst: {greedy_iterations[best_greedy_index] - greedy_iterations[worst_greedy_index]}")
+
     
     df2 = {'eval_scores':eval_scores, 'greedy_iterations':greedy_iterations}
     boxplot(df2, 'eval_scores', y_label='eval_scores', x_label='', title="Random eval_scores")
@@ -802,6 +743,8 @@ def main():
     valid_sse = sse(x_valid, y_valid, best_greedy_m, best_greedy_b)
     print(f"SSE for Validation Data = {valid_sse}")
 
+    input("Press Enter to continue...")
+
     index = best_greedy_index
 
     greedy_ms = []
@@ -818,7 +761,7 @@ def main():
 
     print("\n------  Testing Affect of Epsilon on Greedy Search ------")
     print("\n------ Using Best M/B from Previous Search ------")
-    e_list = [1E-4, 1E-3, 1E-2, 1E-1, 1E0, 1E1, 1E2, 1E3, 1E4, 1E5]
+    e_list = [1E-4, 1E-3, 1E-2, 1E-1, 1E0, 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7]
     for e in e_list:
         print(f"epsilon: {e}")
         g, g_dp_path, g_path, iters = greedy_search(x_vals, y_vals, min_m, max_m, min_b, max_b, start_m=rand_m[index], start_b=rand_b[index], epsilon=e)
