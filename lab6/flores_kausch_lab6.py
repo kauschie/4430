@@ -228,6 +228,8 @@ def main():
     plt.legend()
     plt.show()
 
+    print(f"Precision at youden's: {prec_list[youdens_cutoff_index]}")
+    print(f"Recall at youden's: {rec_list[youdens_cutoff_index]}")
 
     
     print(f"Best cutoff index: {best_cutoff_index}")
