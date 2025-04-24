@@ -88,38 +88,46 @@ def pso_step(positions: np.ndarray, velocities: np.ndarray, pbests: np.ndarray,
         np.ndarray: Updated positions of particles.
     """
     N, D = positions.shape
+    max_vel = 1.1
 
-    r1 = np.random.rand(N, D) # random samples from [0, 1] over N,D array
-    r2 = np.random.rand(N, D)
+    # r1 = np.random.rand(N, D) # random samples from [0, 1] over N,D array
+    # r2 = np.random.rand(N, D)
 
+    r1 = np.random.uniform(0.4, 0.9, size=(N, D))
+    r2 = np.random.uniform(0.4, 0.9, size=(N, D))
+
+
+    
     new_velocities = (
         w * velocities
         + c1 * r1 * (pbests - positions)
         + c2 * r2 * (gbest - positions)
     )
+
+    # new_velocities = np.clip(new_velocities, -max_vel, max_vel)  # Limit velocity to [-0.2, 0.2]
     new_positions = positions + new_velocities
 
     return new_positions, new_velocities
 
-def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, epsilon=1e-6, v_max=None, start_positions=None):
+def run_pso(objective_function, N, D, w=0.1, c1=0.2, c2=1.2, max_iter=100, epsilon=1e-6, v_max=None, start_positions=None):
 
     # terminate based on stagnation over changing epsilon
-    patience = 1
+    patience = 3
     none_improved_counter = 0
 
-    c1_start = 3.6
-    c1_end   = 0.5
-    c2_start = 0.5
-    c2_end   = 3.6
-    # c1 = 2.0
-    # c2 = 2.0
+    c1_start = .8
+    c1_end   = .2
+    c2_start = .2
+    c2_end   = .8
+    # c1 = 1.0
+    # c2 = 3.1
 
 
     # Initialize starting values
     # start pos in the range (symmetrical around it)
     pos_tracker = []
     # positions = np.random.uniform(-2*pi, 2*pi, (N, D))
-    if not start_positions:
+    if start_positions is None:
         rand_path = "./rand_vals_terminator.txt"
         positions = read_random(rand_path)
     else:
@@ -136,7 +144,7 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
     if v_max == None:
         v_max = (max_pos - min_pos) / 2 # max velocity in each dimension
     # v_max = 0
-    # v_max = 0.1
+    v_max = 0.1
     velocities = np.random.uniform(-v_max, v_max, (N, D)) # random velocities in the range of max velocity
     
     # Init personal best as current location
@@ -154,9 +162,9 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
     for i in range(max_iter):
 
         # Update inertia weight and cognitive/social coefficients
-        if i < max_iter / 2:
-            c1 = c1_start + (c1_end - c1_start) * (i / (max_iter / 2))
-            c2 = c2_start + (c2_end - c2_start) * (i / (max_iter / 2))
+        # if i < max_iter / 2:
+        #     c1 = c1_start + (c1_end - c1_start) * (i / (max_iter / 2))
+        #     c2 = c2_start + (c2_end - c2_start) * (i / (max_iter / 2))
         # print(f"Iteration {i}: c1 = {c1:.2f}, c2 = {c2:.2f}")
 
         # Update velocities and positions
@@ -166,7 +174,7 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
         # Update personal bests
         new_vals = objective_function(positions[:, 0], positions[:, 1])
 
-        improved = pbest_vals < new_vals # create mask of values that are better than the current personal best
+        improved = new_vals > pbest_vals # create mask of values that are better than the current personal best
         any_improved = np.any(improved) # check if any values improved
         
         pbests[improved] = positions[improved] # update personal bests based on mask passed in
@@ -184,12 +192,12 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
 
 
 
-        # check for stagnation among particles
-        if any_improved:
-            none_improved_counter = 0
-            # print(f"Improved: {num_improved} particles improved their personal bests.")
-        else:
-            none_improved_counter += 1
+        # # check for stagnation among particles
+        # if any_improved:
+        #     none_improved_counter = 0
+        #     # print(f"Improved: {num_improved} particles improved their personal bests.")
+        # else:
+        #     none_improved_counter += 1
 
         # check if no pbest improved
         # if not any_improved:
@@ -197,20 +205,20 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
         #     break
             
 
-        # check for stagnation among global best
-        # if abs(previous_gbest_val - gbest_val) < epsilon:
-        #     none_improved_counter += 1
-        # else:
-        #     none_improved_counter = 0
+        # # check for stagnation among global best
+        if abs(previous_gbest_val - gbest_val) < epsilon:
+            none_improved_counter += 1
+        else:
+            none_improved_counter = 0
+
+        if none_improved_counter >= patience:
+            # print(f"Terminating after {i} iterations due to stagnation.")
+            # print(f"Converged: {gbest_val} with epsilon {epsilon}")
+            break
 
         # if none_improved_counter >= patience:
         #     print(f"Terminating after {i} iterations due to stagnation.")
-        #     print(f"Converged: {gbest_val} with epsilon {epsilon}")
         #     break
-
-        if none_improved_counter >= patience:
-            print(f"Terminating after {i} iterations due to stagnation.")
-            break
 
 
         # print(f"Iteration {i}: Best Value = {gbest_val}")
@@ -227,17 +235,23 @@ def run_pso(objective_function, N, D, w=.72984, c1=2.05, c2=2.05, max_iter=100, 
 
 
 def make_gif(img_dir, output_path):
-    with imageio.get_writer(output_path, mode='I', duration=0.02) as writer:
+    with imageio.get_writer(output_path, mode='I', duration=0.02, loop=0) as writer:
         for filename in sorted(os.listdir(img_dir)):
             if filename.endswith(".png") and filename.startswith("frame_"):
                 image = imageio.imread(os.path.join(img_dir, filename))
                 writer.append_data(image)
+    # delete the images after creating the gif
+    for filename in os.listdir(img_dir):
+        if filename.endswith(".png") and filename.startswith("frame_"):
+            os.remove(os.path.join(img_dir, filename))
+
+
 
 def boxplot(df, col, y_label, x_label, title='PSO Box Plot', chart_type="box_and_strip"):
     plt.figure(figsize=(7, 7))
-    sns.stripplot(data=df, x='Velocity', y=col, color='gray', size=4, jitter=True, alpha=0.4)
+    sns.stripplot(data=df, x='Omega', y=col, color='gray', size=4, jitter=True, alpha=0.4)
     if chart_type == "box_and_strip":
-        sns.boxplot(data=df, x='Velocity', y=col)
+        sns.boxplot(data=df, x='Omega', y=col)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)
@@ -296,42 +310,45 @@ if __name__ == "__main__":
     D = 2   # Number of dimensions
     max_iter = 100  # Maximum number of iterations
     trials = 1000
-    velocities = [0, pi/6, pi/3, 3*pi/6, 2*pi/3, 5*pi/6, pi]
-    v_labels = ["0", "pi/6", "pi/3", "3*pi/6", "2*pi/3", "5*pi/6", "pi"]
+    omegas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    omega_labels = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
     # Add a sanitized version for filename usage
-    v_safe_labels = [label.replace("/", "_").replace("*", "x") for label in v_labels]
+    v_safe_labels = [label.replace("/", "_").replace("*", "x") for label in omega_labels]
 
     captured_example = False
     results = []
 
     # Run PSO
-    # best_position, best_value, tracking_data = run_pso(terminator, N, D, max_iter=max_iter)
+    best_position, best_value, tracking_data = run_pso(terminator, N, D, max_iter=max_iter)
 
     # Print final results
-    # print(f"Best Position: {best_position}")
-    # print(f"Best Value: {best_value}")
-    # if (abs(best_position[0]) > 5*pi or abs(best_position[1]) > 5*pi):
-    #     print("Best position is out of bounds. Skipping image generation.")
-    # else:
-    #     for i in range(len(tracking_data["pos"])):
-    #         generate_iteration_plot(tracking_data, i, f"./img/frame_{i:03d}.png")
-    #         print(f"\rGenerating frame {i+1}/{len(tracking_data['pos'])}", end='')
-
+    print(f"Best Position: {best_position}")
+    print(f"Best Value: {best_value}")
+    if (abs(best_position[0]) > 5*pi or abs(best_position[1]) > 5*pi):
+        print("Best position is out of bounds. Skipping image generation.")
+    else:
+        for i in range(len(tracking_data["pos"])):
+            generate_iteration_plot(tracking_data, i, f"./img/frame_{i:03d}.png")
+            print(f"\rGenerating frame {i+1}/{len(tracking_data['pos'])}", end='')
+        make_gif("./img", f"./img/animation_test_swarm.gif")
+    
+    
+    
     fout = open("pso_results.txt", "w")
-    fout.write("Trial, Velocity, Best Position, Best Value, num iterations\n")
+    fout.write("Trial, Omega, Best Position, Best Value, num iterations\n")
 
-    for v in range(len(velocities)):
+    for v in range(len(omegas)):
         captured_example = False
         # captured_example = True
 
         for i in range(trials):
-            best_position, best_value, tracking_data = run_pso(terminator, N, D, max_iter=max_iter, v_max=velocities[v])
-            fout.write(f"{i+1}, {v_labels[v]}, {best_position}, {best_value}, {len(tracking_data['pos'])}\n")
-            print(f"Trial {i+1}, Velocity {v_labels[v]}: Best Position: {best_position}, Best Value: {best_value}")
+            best_position, best_value, tracking_data = run_pso(terminator, N, D, max_iter=max_iter, w=omegas[v])
+            fout.write(f"{i+1}, {omega_labels[v]}, {best_position}, {best_value}, {len(tracking_data['pos'])}\n")
+            # print(f"Trial {i+1}, Omega {omega_labels[v]}: Best Position: {best_position}, Best Value: {best_value}")
 
             results.append({
                 "Trial": i+1,
-                "Velocity": v_labels[v],
+                "Omega": omega_labels[v],
                 "Best Value": best_value,
                 "Iterations": len(tracking_data['pos']),
                 "Best X": best_position[0],
@@ -358,9 +375,9 @@ if __name__ == "__main__":
     # Create DataFrame
     df = pd.DataFrame(results)
 
-    # Plot best value vs velocity
-    boxplot(df, col="Best Value", y_label="Best Value", x_label="Initial Velocity (v_max)", title="Final Best Values by Starting Velocity")
-    boxplot(df, col="Iterations", y_label="Iterations", x_label="Initial Velocity (v_max)", title="Total Iterations by Starting Velocity")
+    # Plot best value vs omega
+    boxplot(df, col="Best Value", y_label="Best Value", x_label="Omega (w)", title="Final Best Values by Omega (w)")
+    boxplot(df, col="Iterations", y_label="Iterations", x_label="Omega (w)", title="Total Iterations by Omega (w)")
 
         # Define metrics to analyze
     metrics = ["Best Value", "Iterations"]
@@ -368,7 +385,7 @@ if __name__ == "__main__":
     for metric in metrics:
         fout.write(f"\n=== {metric} Analysis ===\n")
 
-        grouped = df.groupby("Velocity")[metric]
+        grouped = df.groupby("Omega")[metric]
 
         # Confidence intervals
         fout.write("Confidence Intervals:\n")
@@ -379,33 +396,33 @@ if __name__ == "__main__":
             ci_results[name] = stats_result
 
         # Prepare matrices for t-tests
-        velocities = list(grouped.groups.keys())
-        t_vals = np.zeros((len(velocities), len(velocities)))
-        p_vals = np.zeros((len(velocities), len(velocities)))
+        omegas = list(grouped.groups.keys())
+        t_vals = np.zeros((len(omegas), len(omegas)))
+        p_vals = np.zeros((len(omegas), len(omegas)))
 
-        for i in range(len(velocities)):
-            for j in range(len(velocities)):
+        for i in range(len(omegas)):
+            for j in range(len(omegas)):
                 if i == j:
                     t_vals[i, j] = np.nan
                     p_vals[i, j] = np.nan
                 else:
-                    t_stat, p_val = ttest_ind(grouped.get_group(velocities[i]),
-                                              grouped.get_group(velocities[j]),
+                    t_stat, p_val = ttest_ind(grouped.get_group(omegas[i]),
+                                              grouped.get_group(omegas[j]),
                                               equal_var=False)
                     t_vals[i, j] = t_stat
                     p_vals[i, j] = p_val
 
         # Convert to DataFrames
-        t_df = pd.DataFrame(t_vals, index=velocities, columns=velocities)
-        p_df = pd.DataFrame(p_vals, index=velocities, columns=velocities)
+        t_df = pd.DataFrame(t_vals, index=omegas, columns=omegas)
+        p_df = pd.DataFrame(p_vals, index=omegas, columns=omegas)
 
         # Plot heatmaps
         plot_distance_heatmap(t_df, title=f"T-Test Heatmap (t-values) - {metric}", colorbar_title="t-statistic", cmap="coolwarm", annot=True)
         plot_distance_heatmap(p_df, title=f"T-Test Heatmap (p-values) - {metric}", colorbar_title="p-value", cmap="viridis", annot=True)
 
     fout.close()
-
-
+    
+    """
     # chose 100 samples to align with CEO testing
     # used stop crieria 3 where pbest didn't change for any particle
     # used linear c1/c2 adjust
@@ -414,17 +431,18 @@ if __name__ == "__main__":
 
     # test to compare to CEO
 
+    
     fout = open("pso_results_100.txt", "w")
-    fout.write("Trial, Velocity, Best Position, Best Value, num iterations\n")
+    fout.write("Trial, Omega, Best Position, Best Value, num iterations\n")
 
+    results = []
     positions = read_random("rand_vals_terminator_100.data")
     for i in range(1000):
-        best_position, best_value, tracking_data = run_pso(terminator, 100, 2, max_iter=max_iter, v_max=pi, positions=positions)
-        fout.write(f"{i+1}, {v_labels[v]}, {best_position}, {best_value}, {len(tracking_data['pos'])}\n")
+        best_position, best_value, tracking_data = run_pso(terminator, 100, 2, max_iter=max_iter, v_max=pi, start_positions=positions)
+        fout.write(f"{i+1}, {best_position}, {best_value}, {len(tracking_data['pos'])}\n")
 
         results.append({
             "Trial": i+1,
-            "Velocity": v_labels[v],
             "Best Value": best_value,
             "Iterations": len(tracking_data['pos']),
             "Best X": best_position[0],
@@ -441,3 +459,4 @@ if __name__ == "__main__":
     fout.write(f"Iterations: {stats_result['mean']:.3f}, StdDev = {stats_result['stdev']:.3f}, CI = ({stats_result['ci'][0]:.3f}, {stats_result['ci'][1]:.3f})\n")
     fout.close()
     print(f"Results saved to pso_results_100.txt")
+    """
