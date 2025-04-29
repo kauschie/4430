@@ -4,6 +4,9 @@ import numpy as np
 import subprocess
 import matplotlib.pyplot as plt
 import tqdm
+import matplotlib
+matplotlib.use('TkAgg')
+
 
 # ------------------ Data Functions ------------------
 
@@ -67,8 +70,29 @@ def run_magic_code(magic_number, known_path, unknown_path):
 
 # ------------------ Metrics Functions ------------------
 
+# 
+# for binary or multi-class classification
+
 def get_metrics_multiclass(labels, test_data, class_list):
+    """
+    Calculate metrics for multi-class classification including precision, recall, F1 score, and accuracy.
+    
+    Args:
+        labels (list): Predicted labels.
+        test_data (list): Actual test data including true labels.
+        class_list (list): List of unique class labels.
+            class list will be list of valid labels (e.g. 'M' or 'F' or '1', '2', '3')
+    Returns:
+        tuple: macro F1 score, accuracy, macro precision, macro recall, per class F1 scores.
+    """
+
+
     epsilon = 1e-20
+
+    # Initialize dictionaries to count true positives, false positives, and false negatives
+    # tp will be relative to perspective of the classification
+        # e.g. if class '1' is positive, then tp will be true positives for class '1'
+
     tp_dict = {c: 0 for c in class_list}
     fp_dict = {c: 0 for c in class_list}
     fn_dict = {c: 0 for c in class_list}
@@ -93,6 +117,7 @@ def get_metrics_multiclass(labels, test_data, class_list):
     per_class_recall = {}
     per_class_f1 = {}
 
+    # Calculate precision, recall, and F1 score for each classification
     for c in class_list:
         precision = tp_dict[c] / (tp_dict[c] + fp_dict[c] + epsilon)
         recall = tp_dict[c] / (tp_dict[c] + fn_dict[c] + epsilon)
@@ -102,12 +127,42 @@ def get_metrics_multiclass(labels, test_data, class_list):
         per_class_recall[c] = recall
         per_class_f1[c] = f1
 
+    # calculate average across all classifiers (e.g. avg(male precision and female precision))
     macro_precision = sum(per_class_precision.values()) / len(class_list)
     macro_recall = sum(per_class_recall.values()) / len(class_list)
     macro_f1 = sum(per_class_f1.values()) / len(class_list)
     accuracy = correct / len(labels)
 
     return macro_f1, accuracy, macro_precision, macro_recall, per_class_f1
+
+
+import matplotlib.pyplot as plt
+
+def plot_f1_curves(mean_macro_f1, per_class_f1_curves, class_list, save_path=None):
+    magic_numbers = list(range(1, len(mean_macro_f1) + 1))
+
+    plt.figure(figsize=(12,8))
+
+    # Plot macro-F1
+    plt.plot(magic_numbers, mean_macro_f1, label="Macro-F1", linewidth=2)
+
+    # Plot each class F1 curve
+    for label in class_list:
+        plt.plot(magic_numbers, per_class_f1_curves[label], label=f"Class {label} F1", linestyle="--")
+
+    plt.xlabel('Magic Number')
+    plt.ylabel('F1 Score')
+    # plt.ylim(0, 1)  # lock y-axis to 0-1 for easier comparison
+    plt.title('F1 Scores vs Magic Number')
+    plt.legend()
+    plt.grid(True)
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+
 
 # ------------------ Main Program ------------------
 
@@ -124,6 +179,7 @@ def main():
     unknown_data_path = args.unknown
     k = args.folds
     num_tests = args.tests
+    max_magic_number = 16
 
     # Identify class labels dynamically
     class_list = sorted(set([row[-1] for row in known_data]))
@@ -131,8 +187,10 @@ def main():
     # Track overall test results
     avg_macro_f1_all_tests = []
     avg_accuracy_all_tests = []
+    # Add at the start
+    per_class_f1_curves = {c: [0]*max_magic_number for c in class_list}
 
-    progress = tqdm.tqdm(total=120*num_tests, desc="Running Tests", dynamic_ncols=True)
+    progress = tqdm.tqdm(total=max_magic_number*num_tests, desc="Running Tests", dynamic_ncols=True)
 
     for test in range(1, num_tests + 1):
         folds, fold_paths, train_paths = k_fold_cross_validation(known_data, k)
@@ -140,7 +198,7 @@ def main():
         avg_macro_f1 = []
         avg_accuracy = []
 
-        for magic_number in range(1, 121):
+        for magic_number in range(1, max_magic_number + 1):
             f1s = []
             accuracies = []
 
@@ -150,6 +208,11 @@ def main():
                     macro_f1, accuracy, macro_precision, macro_recall, per_class_f1 = get_metrics_multiclass(result, folds[j], class_list)
                     f1s.append(macro_f1)
                     accuracies.append(accuracy)
+
+                    # Update per-class F1 curves
+                    for c in class_list:
+                        per_class_f1_curves[c][magic_number-1] += per_class_f1[c] / (k * num_tests)  # Average over folds+tests
+
                 else:
                     f1s.append(0)
                     accuracies.append(0)
@@ -201,14 +264,16 @@ def main():
 
         # Now re-run MagicCode for this magic number on the training data to get per-class F1
         # (using full known data for evaluation if you want real per-class)
-        result = run_magic_code(magic_number, args.known, args.known)  # classify known against itself
-        if result:
-            _, _, _, _, per_class_f1 = get_metrics_multiclass(result, known_data, class_list)
-            print("Per-class F1 scores:")
-            for label in sorted(class_list):
-                print(f"  Class {label}: F1 = {per_class_f1[label]:.4f}")
-        else:
-            print("  Error running MagicCode for evaluation!")
+        print(f"Per-class F1 scores for Magic Number {magic_number}:")
+        for label in sorted(class_list):
+            print(f"  Class {label}: F1 = {per_class_f1_curves[label][magic_number-1]:.4f}")
+
+
+    # Plot F1 curves
+    print("\n=== Plotting F1 Curves ===")
+    # Save the plot
+    plot_f1_curves(mean_macro_f1, per_class_f1_curves, class_list, save_path="f1_curves.png")
+    print("F1 curves saved to 'f1_curves.png'.")
 
 if __name__ == "__main__":
     main()

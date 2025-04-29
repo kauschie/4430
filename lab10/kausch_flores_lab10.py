@@ -152,6 +152,55 @@ def get_metrics(labels, test_data, positive_class='M'):
     return f1, accuracy, precision, recall, tpr, fpr
 
 
+
+def get_metrics_multiclass(labels, test_data, class_list):
+    epsilon = 1e-20
+
+    tp_dict = {c: 0 for c in class_list}
+    fp_dict = {c: 0 for c in class_list}
+    fn_dict = {c: 0 for c in class_list}
+
+    n = len(labels)
+    correct = 0
+
+    for i in range(n):
+        y_hat = labels[i]
+        y_actual = test_data[i][-1]  # assuming label is last column
+
+        if y_hat == y_actual:
+            correct += 1
+
+        for c in class_list:
+            if y_hat == c and y_actual == c:
+                tp_dict[c] += 1
+            elif y_hat == c and y_actual != c:
+                fp_dict[c] += 1
+            elif y_hat != c and y_actual == c:
+                fn_dict[c] += 1
+
+    per_class_precision = {}
+    per_class_recall = {}
+    per_class_f1 = {}
+
+    for c in class_list:
+        precision = tp_dict[c] / (tp_dict[c] + fp_dict[c] + epsilon)
+        recall = tp_dict[c] / (tp_dict[c] + fn_dict[c] + epsilon)
+        f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+
+        per_class_precision[c] = precision
+        per_class_recall[c] = recall
+        per_class_f1[c] = f1
+
+    # Macro average (simple unweighted average)
+    macro_precision = sum(per_class_precision.values()) / len(class_list)
+    macro_recall = sum(per_class_recall.values()) / len(class_list)
+    macro_f1 = sum(per_class_f1.values()) / len(class_list)
+
+    accuracy = correct / n
+
+    return macro_f1, accuracy, macro_precision, macro_recall, per_class_f1, per_class_precision, per_class_recall
+
+
 # def plot_accuracies(accuracies, title=None, save_path=None):
 #     # plot the accuracies
 #     plt.plot(range(1, len(accuracies) + 1), accuracies)
