@@ -72,6 +72,24 @@ def run_magic_code(magic_number, known_path, unknown_path):
 
 # 
 # for binary or multi-class classification
+def calc_youdens_j(tpr_list, fpr_list):
+    """
+    Calculates best cutoff that's closest to (0,1) on the ROC curve
+    inputs:
+        tpr_list: list of tpr values
+        fpr_list: list of fpr values
+    returns:
+        index of best cutoff
+    """
+    index = None
+    best = 0
+    best_index = None
+    for i in range(len(tpr_list)):
+        youdens_j = tpr_list[i] - fpr_list[i]
+        if youdens_j > best:
+            best = youdens_j
+            best_index = i
+    return best_index
 
 def get_metrics_multiclass(labels, test_data, class_list):
     """
@@ -96,6 +114,7 @@ def get_metrics_multiclass(labels, test_data, class_list):
     tp_dict = {c: 0 for c in class_list}
     fp_dict = {c: 0 for c in class_list}
     fn_dict = {c: 0 for c in class_list}
+    tn_dict = {c: 0 for c in class_list}
 
     correct = 0
     for i in range(len(labels)):
@@ -112,28 +131,38 @@ def get_metrics_multiclass(labels, test_data, class_list):
                 fp_dict[c] += 1
             elif y_hat != c and y_actual == c:
                 fn_dict[c] += 1
+            elif y_hat != c and y_actual != c:
+                tn_dict[c] += 1
 
     per_class_precision = {}
     per_class_recall = {}
     per_class_f1 = {}
+    per_class_tpr = {}
+    per_class_fpr = {}
 
     # Calculate precision, recall, and F1 score for each classification
     for c in class_list:
         precision = tp_dict[c] / (tp_dict[c] + fp_dict[c] + epsilon)
         recall = tp_dict[c] / (tp_dict[c] + fn_dict[c] + epsilon)
         f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+        tpr = tp_dict[c] / (tp_dict[c] + fn_dict[c] + epsilon)
+        fpr = fp_dict[c] / (fp_dict[c] + tn_dict[c] + epsilon)
 
         per_class_precision[c] = precision
         per_class_recall[c] = recall
         per_class_f1[c] = f1
+        per_class_tpr[c] = tpr
+        per_class_fpr[c] = fpr
 
     # calculate average across all classifiers (e.g. avg(male precision and female precision))
     macro_precision = sum(per_class_precision.values()) / len(class_list)
     macro_recall = sum(per_class_recall.values()) / len(class_list)
     macro_f1 = sum(per_class_f1.values()) / len(class_list)
+    macro_tpr = sum(per_class_tpr.values()) / len(class_list)
+    macro_fpr = sum(per_class_fpr.values()) / len(class_list)
     accuracy = correct / len(labels)
 
-    return macro_f1, accuracy, macro_precision, macro_recall, per_class_f1
+    return macro_f1, accuracy, macro_precision, macro_recall, per_class_f1, macro_tpr, macro_fpr
 
 
 import matplotlib.pyplot as plt
@@ -179,7 +208,7 @@ def main():
     unknown_data_path = args.unknown
     k = args.folds
     num_tests = args.tests
-    max_magic_number = 16
+    max_magic_number = 10
 
     # Identify class labels dynamically
     class_list = sorted(set([row[-1] for row in known_data]))
@@ -187,8 +216,13 @@ def main():
     # Track overall test results
     avg_macro_f1_all_tests = []
     avg_accuracy_all_tests = []
+    avg_tpr_all_tests = []
+    avg_fpr_all_tests = []
+    avg_precision_all_tests = []
+    avg_recall_all_tests = []
     # Add at the start
     per_class_f1_curves = {c: [0]*max_magic_number for c in class_list}
+
 
     progress = tqdm.tqdm(total=max_magic_number*num_tests, desc="Running Tests", dynamic_ncols=True)
 
@@ -197,17 +231,29 @@ def main():
 
         avg_macro_f1 = []
         avg_accuracy = []
+        avg_tpr = []
+        avg_fpr = []
+        avg_precision = []
+        avg_recall = []
 
         for magic_number in range(1, max_magic_number + 1):
             f1s = []
             accuracies = []
+            tprs = []
+            fprs = []
+            precisions = []
+            recalls = []
 
             for j, fp in enumerate(fold_paths):
                 result = run_magic_code(magic_number, train_paths[j], fp)
                 if result:
-                    macro_f1, accuracy, macro_precision, macro_recall, per_class_f1 = get_metrics_multiclass(result, folds[j], class_list)
+                    macro_f1, accuracy, macro_precision, macro_recall, per_class_f1, macro_tpr, macro_fpr = get_metrics_multiclass(result, folds[j], class_list)
                     f1s.append(macro_f1)
                     accuracies.append(accuracy)
+                    tprs.append(macro_tpr)
+                    fprs.append(macro_fpr)
+                    precisions.append(macro_precision)
+                    recalls.append(macro_recall)
 
                     # Update per-class F1 curves
                     for c in class_list:
@@ -216,27 +262,53 @@ def main():
                 else:
                     f1s.append(0)
                     accuracies.append(0)
+                    tprs.append(0)
+                    fprs.append(0)
+                    precisions.append(0)
+                    recalls.append(0)
 
             avg_macro_f1.append(sum(f1s) / len(f1s))
             avg_accuracy.append(sum(accuracies) / len(accuracies))
+            avg_tpr.append(sum(tprs) / len(tprs))
+            avg_fpr.append(sum(fprs) / len(fprs))
+            avg_precision.append(sum(precisions) / len(precisions))
+            avg_recall.append(sum(recalls) / len(recalls))
             progress.update(1)
 
         avg_macro_f1_all_tests.append(avg_macro_f1)
         avg_accuracy_all_tests.append(avg_accuracy)
+        avg_tpr_all_tests.append(avg_tpr)
+        avg_fpr_all_tests.append(avg_fpr)
+        avg_precision_all_tests.append(avg_precision)
+        avg_recall_all_tests.append(avg_recall)
 
     progress.close()
 
     # Convert to arrays
     avg_macro_f1_all_tests = np.array(avg_macro_f1_all_tests)
     avg_accuracy_all_tests = np.array(avg_accuracy_all_tests)
+    avg_tpr_all_tests = np.array(avg_tpr_all_tests)
+    avg_fpr_all_tests = np.array(avg_fpr_all_tests)
+    avg_precision_all_tests = np.array(avg_precision_all_tests)
+    avg_recall_all_tests = np.array(avg_recall_all_tests)
 
     mean_macro_f1 = np.mean(avg_macro_f1_all_tests, axis=0)
     mean_accuracy = np.mean(avg_accuracy_all_tests, axis=0)
+    mean_tpr = np.mean(avg_tpr_all_tests, axis=0)
+    mean_fpr = np.mean(avg_fpr_all_tests, axis=0)
+    mean_precision = np.mean(avg_precision_all_tests, axis=0)
+    mean_recall = np.mean(avg_recall_all_tests, axis=0)
 
     # Pick best magic number based on highest macro F1
-    best_magic_number = np.argmax(mean_macro_f1) + 1
-    best_f1 = mean_macro_f1[best_magic_number - 1]
-    best_acc = mean_accuracy[best_magic_number - 1]
+    # best_magic_number = np.argmax(mean_macro_f1) + 1
+    # best_f1 = mean_macro_f1[best_magic_number - 1]
+    # best_acc = mean_accuracy[best_magic_number - 1]
+
+    # pick best magic number based on youden's j
+    best_idx = calc_youdens_j(mean_tpr, mean_fpr)
+    best_magic_number = best_idx + 1
+    best_f1 = mean_macro_f1[best_idx]
+    best_acc = mean_accuracy[best_idx]
 
     print("\n=== Best Magic Number Selected ===")
     print(f"Best magic number: {best_magic_number}")
@@ -251,22 +323,22 @@ def main():
                 f_out.write(f"{pred}\n")
         print("\nPredictions on unknown data saved to 'unknown_predictions.csv'.")
 
-    # Find top 3 magic numbers based on mean macro F1
-    top_3_indices = np.argsort(mean_macro_f1)[-3:][::-1]  # Indices of top 3 (descending order)
+    # # Find top 3 magic numbers based on mean macro F1
+    # top_3_indices = np.argsort(mean_macro_f1)[-3:][::-1]  # Indices of top 3 (descending order)
 
-    print("\n=== Top 3 Magic Numbers (based on Macro-F1) ===")
-    for rank, idx in enumerate(top_3_indices, start=1):
-        magic_number = idx + 1
-        print(f"\n--- Rank {rank} ---")
-        print(f"Magic Number: {magic_number}")
-        print(f"Mean Macro F1: {mean_macro_f1[idx]:.4f}")
-        print(f"Mean Accuracy: {mean_accuracy[idx]:.4f}")
+    # print("\n=== Top 3 Magic Numbers (based on Macro-F1) ===")
+    # for rank, idx in enumerate(top_3_indices, start=1):
+    #     magic_number = idx + 1
+    #     print(f"\n--- Rank {rank} ---")
+    #     print(f"Magic Number: {magic_number}")
+    #     print(f"Mean Macro F1: {mean_macro_f1[idx]:.4f}")
+    #     print(f"Mean Accuracy: {mean_accuracy[idx]:.4f}")
 
-        # Now re-run MagicCode for this magic number on the training data to get per-class F1
-        # (using full known data for evaluation if you want real per-class)
-        print(f"Per-class F1 scores for Magic Number {magic_number}:")
-        for label in sorted(class_list):
-            print(f"  Class {label}: F1 = {per_class_f1_curves[label][magic_number-1]:.4f}")
+    #     # Now re-run MagicCode for this magic number on the training data to get per-class F1
+    #     # (using full known data for evaluation if you want real per-class)
+    #     print(f"Per-class F1 scores for Magic Number {magic_number}:")
+    #     for label in sorted(class_list):
+    #         print(f"  Class {label}: F1 = {per_class_f1_curves[label][magic_number-1]:.4f}")
 
 
     # Plot F1 curves
@@ -274,6 +346,28 @@ def main():
     # Save the plot
     plot_f1_curves(mean_macro_f1, per_class_f1_curves, class_list, save_path="f1_curves.png")
     print("F1 curves saved to 'f1_curves.png'.")
+
+    # Precision-Recall Curve (macro averaged)
+    plt.figure()
+    plt.scatter(mean_recall, mean_precision, marker='o', label='Macro PR Curve (Averaged)')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Macro Precision-Recall Curve (Averaged Across Tests)")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig("precision_recall_multi_class.png", bbox_inches='tight')
+    plt.show()
+
+    plt.figure()
+    plt.scatter(mean_fpr, mean_tpr, marker='o', label='Macro ROC Curve (Averaged)')
+    plt.scatter([0, 1], [0, 1], linestyle='--', color='gray', label='Random Classifier')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Macro ROC Curve (Averaged Across Tests)")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig("roc_curve_multi_class.png", bbox_inches='tight')
+    plt.show()
 
 if __name__ == "__main__":
     main()

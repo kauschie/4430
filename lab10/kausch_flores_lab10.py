@@ -264,17 +264,108 @@ def plot_male_vs_female(male_vals, female_vals, ylabel, title=None, save_path=No
     plt.show()
     plt.close()
 
+def plot_macro(macro_vals, ylabel, title=None, save_path=None):
+    d_list = list(range(1, len(macro_vals) + 1))
+    plt.figure(figsize=(10,6))
+
+    plt.plot(d_list, macro_vals, label="Averaged Data", alpha=0.8)
+    
+    plt.xlabel('Magic Number')
+    plt.ylabel(ylabel)
+    
+    if title:
+        plt.title(title)
+    else:
+        plt.title(f'Averaged {ylabel} by Magic Number')
+
+    plt.legend()
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+
+def calc_auc_cutoff(tpr_list, fpr_list):
+    """
+    Calculates best cutoff that's closest to (0,1) on the ROC curve
+    inputs:
+        tpr_list: list of tpr values
+        fpr_list: list of fpr values
+    returns:
+        index of best cutoff
+    """
+    index = None
+    best = 0
+    best_index = None
+    for i in range(len(tpr_list)):
+        youdens_j = tpr_list[i] - fpr_list[i]
+        if youdens_j > best:
+            best = youdens_j
+            best_index = i
+    return best_index
+
+def precision_recall_curve(m_precisions, f_precisions, m_recalls, f_recalls):
+    """
+    Plots the precision-recall curve
+
+    Parameters:
+    - m_precisions (list of float): List of male precision values.
+    - f_precisions (list of float): List of female precision values.
+    - m_recalls (list of float): List of male recall values.
+    - f_recalls (list of float): List of female recall values.
+
+    Returns:
+     - Nothing
+
+    """
+
+    plt.scatter(m_recalls, m_precisions, marker='.', alpha=0.8, label="Male PR Curve")
+    plt.scatter(f_recalls, f_precisions, marker='.', alpha=0.8, label="Female PR Curve")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    # plt.xlim(0,1)
+    # plt.ylim(0,1)
+    plt.title("Male vs Female Precision-Recall Curve")
+    plt.legend()
+    plt.savefig("male_vs_female_precision_recall_curve.png", bbox_inches='tight')
+    plt.show()
+
+def plot_roc_curve(male_tpr_list, male_fpr_list, female_tpr_list, female_fpr_list):
+    """
+    Plots the ROC curve
+
+    Parameters:
+    - male_tpr_list (list of float): List of true positive rates for males.
+    - male_fpr_list (list of float): List of false positive rates for males.
+    - female_tpr_list (list of float): List of true positive rates for females.
+    - female_fpr_list (list of float): List of false positive rates for females.
+
+    Returns:
+     - Nothing
+
+    """
+    plt.scatter(male_fpr_list, male_tpr_list, marker='.', alpha=0.8, label='Male ROC Curve')
+    plt.scatter(female_fpr_list, female_tpr_list, marker='.', alpha=0.8, label='Female ROC Curve')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve')
+    plt.legend()
+    plt.savefig("mvsf_roc_curve.png", bbox_inches='tight')
+    plt.show()
+    plt.close()
 
 if __name__ == "__main__":
     # Example data
     data_path = "Known.csv"
     data = import_army_data(data_path)
+    last_magic_number = 120 # last magic number to test
     
     # Number of folds
     k = 5  # 20% of the data
     
     # Number of repetitions of k-fold CV
-    num_tests = 20
+    num_tests = 10
 
     # Create storage for all tests
     avg_accuracies_all_tests = []
@@ -284,9 +375,20 @@ if __name__ == "__main__":
     avg_f_precisions_all_tests = []
     avg_f_recalls_all_tests = []
     avg_f_f1s_all_tests = []
+    avg_tpr_m_all_tests = []
+    avg_fpr_m_all_tests = []
+    avg_tpr_f_all_tests = []
+    avg_fpr_f_all_tests = []
+
+    avg_macro_f1_all_tests = []
+    avg_macro_precision_all_tests = []
+    avg_macro_accuracy_all_tests = []
+    avg_macro_recall_all_tests = []
+    avg_macro_tpr_all_tests = []
+    avg_macro_fpr_all_tests = []
 
     # Set up tqdm description
-    progress = tqdm.tqdm(total=120*num_tests, desc="Running Tests", dynamic_ncols=True)
+    progress = tqdm.tqdm(total=last_magic_number*num_tests, desc="Running Tests", dynamic_ncols=True)
 
     for test in range(1, num_tests + 1):
         folds, fold_paths, train_paths = k_fold_cross_validation(data["full"], k)
@@ -298,18 +400,40 @@ if __name__ == "__main__":
         avg_f_precisions = []
         avg_f_recalls = []
         avg_f_f1s = []
+        avg_tpr_m = []
+        avg_fpr_m = []
+        avg_tpr_f = []
+        avg_fpr_f = []
+
+        avg_macro_f1_list = []
+        avg_macro_precision_list = []
+        avg_macro_accuracy_list = []
+        avg_macro_recall_list = []
+        avg_macro_tpr_list = []
+        avg_macro_fpr_list = []
 
 
-        for i in range(1, 121):  # Magic numbers 1 to 120
+        for i in range(1, last_magic_number + 1):  # Magic numbers 1 to 120
             magic_number = i
             accuracies = []
             precisions = []
             recalls = []
             f1s = []
+            m_tpr = []
+            m_fpr = []
 
             f_precisions = []
             f_recalls = []
             f_f1s = []
+            f_tpr = []
+            f_fpr = []
+
+            macro_f1s = []
+            macro_accuracys = []
+            macro_precisions = []
+            macro_recalls = []
+            macro_tprs = []
+            macro_fprs = []
 
             for j, fp in enumerate(fold_paths):
                 result = run_magic_code(magic_number, train_paths[j], fp)
@@ -322,11 +446,31 @@ if __name__ == "__main__":
                     precisions.append(precision_m)
                     recalls.append(recall_m)
                     f1s.append(f1_m)
+                    m_tpr.append(tpr_m)
+                    m_fpr.append(fpr_m)
 
                     # append to female lists
                     f_precisions.append(precision_f)
                     f_recalls.append(recall_f)
                     f_f1s.append(f1_f)
+                    f_tpr.append(tpr_f)  # append to female TPR list
+                    f_fpr.append(fpr_f)  # append to female FPR list
+
+                    macro_f1 = (f1_m + f1_f) / 2
+                    macro_accuracy = (accuracy_m + accuracy_f) / 2
+                    macro_precision = (precision_m + precision_f) / 2
+                    macro_recall = (recall_m + recall_f) / 2
+                    macro_tpr = (tpr_m + tpr_f) / 2
+                    macro_fpr = (fpr_m + fpr_f) / 2
+
+                    macro_f1s.append(macro_f1)
+                    macro_accuracys.append(macro_accuracy)
+                    macro_precisions.append(macro_precision)
+                    macro_recalls.append(macro_recall)
+                    macro_tprs.append(macro_tpr)
+                    macro_fprs.append(macro_fpr)
+
+
                 else:
                     accuracies.append(0)
                     precisions.append(0)
@@ -335,6 +479,16 @@ if __name__ == "__main__":
                     f_precisions.append(0)
                     f_recalls.append(0)
                     f_f1s.append(0)
+                    m_tpr.append(0)
+                    m_fpr.append(0)
+                    f_tpr.append(0)
+                    f_fpr.append(0)
+                    macro_f1s.append(0)
+                    macro_accuracys.append(0)
+                    macro_precisions.append(0)
+                    macro_recalls.append(0)
+                    macro_tprs.append(0)
+                    macro_fprs.append(0)
 
             # Average across folds
             avg_accuracy = sum(accuracies) / len(accuracies)
@@ -342,23 +496,37 @@ if __name__ == "__main__":
 
             avg_precision = sum(precisions) / len(precisions)
             avg_precisions.append(avg_precision)
-
-            avg_recall = sum(recalls) / len(recalls)
-            avg_recalls.append(avg_recall)
-
-            avg_f1 = sum(f1s) / len(f1s)
-            avg_f1s.append(avg_f1)
-
-            # --- add these:
             avg_f_precision = sum(f_precisions) / len(f_precisions)
             avg_f_precisions.append(avg_f_precision)
 
+            avg_recall = sum(recalls) / len(recalls)
+            avg_recalls.append(avg_recall)
             avg_f_recall = sum(f_recalls) / len(f_recalls)
             avg_f_recalls.append(avg_f_recall)
 
+            avg_f1 = sum(f1s) / len(f1s)
+            avg_f1s.append(avg_f1)
             avg_f_f1 = sum(f_f1s) / len(f_f1s)
             avg_f_f1s.append(avg_f_f1)
 
+            avg_tpr_m.append(sum(m_tpr) / len(m_tpr))
+            avg_fpr_m.append(sum(m_fpr) / len(m_fpr))
+            avg_tpr_f.append(sum(f_tpr) / len(f_tpr))
+            avg_fpr_f.append(sum(f_fpr) / len(f_fpr))
+
+            # Macro averages - across all classifiers
+            avg_macro_f1 = sum(macro_f1s) / len(macro_f1s)
+            avg_macro_accuracy = sum(macro_accuracys) / len(macro_accuracys)
+            avg_macro_precision = sum(macro_precisions) / len(macro_precisions)
+            avg_macro_recall = sum(macro_recalls) / len(macro_recalls)
+            avg_macro_tpr = sum(macro_tprs) / len(macro_tprs)
+            avg_macro_fpr = sum(macro_fprs) / len(macro_fprs)
+            avg_macro_f1_list.append(avg_macro_f1)
+            avg_macro_accuracy_list.append(avg_macro_accuracy)
+            avg_macro_precision_list.append(avg_macro_precision)
+            avg_macro_recall_list.append(avg_macro_recall)
+            avg_macro_tpr_list.append(avg_macro_tpr)
+            avg_macro_fpr_list.append(avg_macro_fpr)
 
             progress.update(1)
 
@@ -370,6 +538,18 @@ if __name__ == "__main__":
         avg_f_precisions_all_tests.append(avg_f_precisions)
         avg_f_recalls_all_tests.append(avg_f_recalls)
         avg_f_f1s_all_tests.append(avg_f_f1s)
+        
+        avg_tpr_m_all_tests.append(avg_tpr_m)
+        avg_fpr_m_all_tests.append(avg_fpr_m)
+        avg_tpr_f_all_tests.append(avg_tpr_f)
+        avg_fpr_f_all_tests.append(avg_fpr_f)
+
+        avg_macro_f1_all_tests.append(avg_macro_f1_list)
+        avg_macro_accuracy_all_tests.append(avg_macro_accuracy_list)
+        avg_macro_precision_all_tests.append(avg_macro_precision_list)
+        avg_macro_recall_all_tests.append(avg_macro_recall_list)
+        avg_macro_tpr_all_tests.append(avg_macro_tpr_list)
+        avg_macro_fpr_all_tests.append(avg_macro_fpr_list)
 
 
     progress.close()
@@ -396,6 +576,30 @@ if __name__ == "__main__":
     mean_f_precisions = np.mean(avg_f_precisions_all_tests, axis=0)
     mean_f_recalls = np.mean(avg_f_recalls_all_tests, axis=0)
     mean_f_f1s = np.mean(avg_f_f1s_all_tests, axis=0)
+
+    # Average TPR and FPR
+    avg_tpr_m_all_tests = np.array(avg_tpr_m_all_tests)
+    avg_fpr_m_all_tests = np.array(avg_fpr_m_all_tests)
+    avg_tpr_f_all_tests = np.array(avg_tpr_f_all_tests)
+    avg_fpr_f_all_tests = np.array(avg_fpr_f_all_tests)
+    mean_tpr_m = np.mean(avg_tpr_m_all_tests, axis=0)
+    mean_fpr_m = np.mean(avg_fpr_m_all_tests, axis=0)
+    mean_tpr_f = np.mean(avg_tpr_f_all_tests, axis=0)
+    mean_fpr_f = np.mean(avg_fpr_f_all_tests, axis=0)
+
+    # Average macro metrics
+    avg_macro_f1_all_tests = np.array(avg_macro_f1_all_tests)
+    avg_macro_accuracy_all_tests = np.array(avg_macro_accuracy_all_tests)
+    avg_macro_precision_all_tests = np.array(avg_macro_precision_all_tests)
+    avg_macro_recall_all_tests = np.array(avg_macro_recall_all_tests)
+    avg_macro_tpr_all_tests = np.array(avg_macro_tpr_all_tests)
+    avg_macro_fpr_all_tests = np.array(avg_macro_fpr_all_tests)
+    mean_macro_f1 = np.mean(avg_macro_f1_all_tests, axis=0)
+    mean_macro_accuracy = np.mean(avg_macro_accuracy_all_tests, axis=0)
+    mean_macro_precision = np.mean(avg_macro_precision_all_tests, axis=0)
+    mean_macro_recall = np.mean(avg_macro_recall_all_tests, axis=0)
+    mean_macro_tpr = np.mean(avg_macro_tpr_all_tests, axis=0)
+    mean_macro_fpr = np.mean(avg_macro_fpr_all_tests, axis=0)
 
 
     # Find the best magic number based on mean accuracies
@@ -432,6 +636,50 @@ if __name__ == "__main__":
                         title="Male vs Female F1 Score by Magic Number",
                         save_path="f1_m_vs_f.png")
     
+    # Macro metrics comparison
+    plot_accuracies(mean_macro_accuracy, mean_macro_f1, mean_macro_precision, mean_macro_recall,
+                    title="Mean Macro Metrics (Averaged Across Tests)",
+                    save_path="mean_macro_metrics.png")
+
+    # Precision-Recall Curve
+    precision_recall_curve(mean_precisions, mean_f_precisions, mean_recalls, mean_f_recalls)
+    precision_recall_curve(avg_precisions_all_tests.mean(axis=0), avg_f_precisions_all_tests.mean(axis=0),
+                           avg_recalls_all_tests.mean(axis=0), avg_f_recalls_all_tests.mean(axis=0))
+
+    # # ROC Curve
+    plot_roc_curve(avg_tpr_m, avg_fpr_m, avg_tpr_f, avg_fpr_f)
+
+    # Precision-Recall Curve (macro averaged)
+    plt.figure()
+    plt.scatter(mean_macro_recall, mean_macro_precision, marker='o', label='Macro PR Curve (Averaged)')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Macro Precision-Recall Curve (Averaged Across Tests)")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig("macro_pr_curve_averaged.png", bbox_inches='tight')
+    plt.show()
+
+    # ROC Curve (macro averaged)
+    plt.figure()
+    plt.scatter(mean_macro_fpr, mean_macro_tpr, marker='o', label='Macro ROC Curve (Averaged)')
+    plt.scatter([0, 1], [0, 1], linestyle='--', color='gray', label='Random Classifier')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Macro ROC Curve (Averaged Across Tests)")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig("macro_roc_curve_averaged.png", bbox_inches='tight')
+    plt.show()
+
+    best_idx = calc_auc_cutoff(mean_macro_tpr, mean_macro_fpr)
+    best_magic_number = best_idx + 1  # if you used 1-based indexing
+    print(f"Best magic number (Youden's J statistic): {best_magic_number} with mean accuracy: {mean_macro_accuracy[best_idx]*100:.2f}%")
+    print(f"Best magic number (Youden's J statistic): {best_magic_number} with mean F1: {mean_macro_f1[best_idx]:.4f}")
+    print(f"Best magic number (Youden's J statistic): {best_magic_number} with mean precision: {mean_macro_precision[best_idx]:.4f}")
+    print(f"Best magic number (Youden's J statistic): {best_magic_number} with mean recall: {mean_macro_recall[best_idx]:.4f}")
+
+
     # Select the best magic number based on proportional F1 similarity and value
     best_magic_number = -1
     best_f1_min = -1  # Initialize to worst possible
