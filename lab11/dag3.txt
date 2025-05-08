@@ -1,0 +1,7 @@
+sex
+age
+urbanization
+allergy
+smoke, sex, age
+sedentary, urbanization
+asthma, allergy, smoke, sedentary
