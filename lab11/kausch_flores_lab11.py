@@ -1,5 +1,9 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('TkAgg')
+
+
 
 def read_data(file_name):
     with open(file_name, 'r') as file:
@@ -64,6 +68,8 @@ def predict(row, dag, probs):
     return 'yes' if yes_prob >= no_prob else 'no'
 
 def evaluate_predictions(data_rows, dag):
+    cpts = {}
+    cpts_total = {}
     cpts, cpts_total = initialize_cpts(dag)
     correct = 0
     total = 0
@@ -81,23 +87,45 @@ def evaluate_predictions(data_rows, dag):
 
         update_cpt_from_row(row, dag, cpts, cpts_total)
 
-    return accuracy_over_time
+    return accuracy_over_time, cpts, cpts_total
 
-def plot_accuracy_over_time(accuracies):
+def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.plot(range(1, len(accuracies)+1), accuracies)
     plt.xlabel('Row Number')
-    plt.ylabel('Cumulative Accuracy')
-    plt.title('Accuracy Over Time')
+    plt.ylabel('Accuracy')
+    plt.title(f"{title_prefix} Accuracy Over Time")
     plt.grid(True)
     plt.tight_layout()
+    plt.savefig(f"{title_prefix}.png")
     plt.show()
+
+def write_data_to_file(data, filename):
+    with open(filename, 'w') as file:
+        if isinstance(data, list):
+            for item in data:
+                file.write(f"{item}\n")
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    for sub_key, sub_value in value.items():
+                        file.write(f"{key},{sub_key},{sub_value}\n")
+                else:
+                    file.write(f"{key},{value}\n")
+        else:
+            file.write(str(data) + '\n')
+    print(f"Data written to {filename}")
 
 def main():
     header, data_rows = read_data("BN_Asthma_data.csv")
-    dag = read_dag("dag.txt")
 
-    accuracies = evaluate_predictions(data_rows, dag)
-    plot_accuracy_over_time(accuracies)
+    for i in range(1, 6):
+        path = f"dag{i}.txt"
+        dag = read_dag(path)
+        accuracies, cpts, cpts_total = evaluate_predictions(data_rows, dag)
+        plot_accuracy_over_time(accuracies, title_prefix=f"DAG{i}")
+        write_data_to_file(accuracies, f"dag{i}_accuracy.txt")
+        write_data_to_file(cpts, f"dag{i}_cpts.txt")
+        write_data_to_file(cpts_total, f"dag{i}_cpts_total.txt")
 
 if __name__ == "__main__":
     main()
