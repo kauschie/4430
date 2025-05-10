@@ -161,9 +161,10 @@ def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.savefig(f"{title_prefix}.png")
     plt.show()
 
-def plot_all_accuracies(accuracies_list, auc, title_prefix=''):
+def plot_all_accuracies(accuracies_list, auc, title_prefix='', start=1):
+    # Start refers to which DAG to start plotting from
     for i, accuracies in enumerate(accuracies_list):
-        plt.plot(range(1, len(accuracies)+1), accuracies, label=f'DAG {i+1}: AUC == {auc[i]:.2f}')
+        plt.plot(range(1, len(accuracies)+1), accuracies, label=f'DAG {i+start}: AUC == {auc[i]:.2f}')
 
     # Labels
     plt.xlabel('Row Number')
@@ -202,6 +203,7 @@ def main():
     all_accuracies = []
     aucs = []
 
+    # Loop through DAGs 5 to 13
     for i in range(5, 14):
         # Read DAG
         path = f"dag{i}.txt"
@@ -212,8 +214,8 @@ def main():
         all_accuracies.append(accuracies)
         aucs.append(auc)
 
-        # Visualize and save results
-        plot_accuracy_over_time(accuracies, title_prefix=f"DAG{i}")
+        # Visualize and save results (uncomment to see each individual plot)
+        # plot_accuracy_over_time(accuracies, title_prefix=f"DAG{i}")
         write_data_to_file(accuracies, f"dag{i}_accuracy.txt")
         write_data_to_file(cpts, f"dag{i}_cpts.txt")
         write_data_to_file(cpts_total, f"dag{i}_cpts_total.txt")
@@ -221,8 +223,8 @@ def main():
     # Print AUC
     print(f"AUCs for DAGs: {aucs}")
 
-    # Plot all accuracies
-    plot_all_accuracies(all_accuracies, aucs, title_prefix='All DAGs')
+    # Plot all accuracies (start from DAG 5)
+    plot_all_accuracies(all_accuracies, aucs, title_prefix='All DAG', start = 5)
 
 if __name__ == "__main__":
     main()
