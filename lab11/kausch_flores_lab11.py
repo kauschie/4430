@@ -1,9 +1,13 @@
 from collections import defaultdict
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('TkAgg')
+DEBUG = True
 
-
+######
+# File I/O
+# ######
 
 def read_data(file_name):
     with open(file_name, 'r') as file:
@@ -21,6 +25,84 @@ def read_dag(dag_file):
             parents = [p.strip() for p in parts[1:]] if len(parts) > 1 else []
             dag[node] = parents
     return dag
+
+
+###########
+# Cross-Entropy Method for Logarithmic Curve Fitting
+# ###########
+
+def cem_fit_log_curve(objective_function, 
+                      mean=(1.0, 0.01, 0.5), 
+                      std=1.0, 
+                      n_samples=100, 
+                      elite_frac=0.2, 
+                      max_iters=50, 
+                      epsilon=1e-6, 
+                      track=False):
+    """
+    Cross-Entropy optimization to fit a logarithmic curve of the form:
+        y = a * log(bx + 1) + c
+
+    Parameters:
+        objective_function (callable): Function that takes (a, b, c) and returns a score (higher is better).
+        mean (tuple of float): Initial mean values for (a, b, c).
+        std (float): Initial standard deviation for each parameter.
+        n_samples (int): Number of parameter samples per iteration.
+        elite_frac (float): Fraction of top-performing samples to keep.
+        max_iters (int): Maximum optimization iterations.
+        epsilon (float): Convergence threshold for std.
+        track (bool): Whether to track history (for debugging/plotting).
+
+    Returns:
+        best_params (tuple): Best (a, b, c) found.
+        tracking_data (dict): History of means/stds (if track=True), else None.
+    """
+    mean = np.array(mean)
+    std = np.full(3, std)
+
+    elite_size = int(n_samples * elite_frac)
+    tracking_data = {
+        "mean": [], "std": [], "samples": [], "scores": [], "elites": []
+    } if track else None
+
+    for _ in range(max_iters):
+        samples = np.random.normal(loc=mean, scale=std, size=(n_samples, 3))
+        scores = np.array([objective_function(a, b, c) for a, b, c in samples])
+        elite_indices = scores.argsort()[-elite_size:]
+        elites = samples[elite_indices]
+
+        mean = np.mean(elites, axis=0)
+        std = np.std(elites, axis=0)
+
+        if track:
+            tracking_data["mean"].append(mean.copy())
+            tracking_data["std"].append(std.copy())
+            tracking_data["samples"].append(samples)
+            tracking_data["scores"].append(scores)
+            tracking_data["elites"].append(elites)
+
+        if np.all(std < epsilon):
+            break
+
+    best_idx = elite_indices[-1]
+    best_params = tuple(samples[best_idx])
+
+    return (best_params, tracking_data) if track else best_params
+
+
+
+# Example: fit to x_vals and y_vals from accuracy plot
+def objective(a, b, c):
+    y_pred = a * np.log(np.array(x_vals) * b + 1) + c
+    return -np.mean((y_pred - y_vals)**2)  # maximize fit = minimize MSE
+
+
+
+
+###########
+# Bayesian Network Functions
+# ###########
+
 
 def initialize_cpts(dag):
     cpts = defaultdict(lambda: defaultdict(int))
@@ -61,12 +143,13 @@ def predict(row, dag, probs):
                 key = (row_with_asthma[node],)
             node_prob = probs.get(node, {}).get(key, 1e-6)  # Small epsilon to avoid zero
             prob *= node_prob
-            print(f"  Node: {node}")
-            print(f"    Parents: {parents}")
-            print(f"    Parent values: {parent_vals if parents else 'None'}")
-            print(f"    Key: {key}")
-            print(f"    Probability from CPT: {node_prob}")
-            print(f"    Cumulative joint probability: {prob}")
+            if DEBUG:
+                print(f"  Node: {node}")
+                print(f"    Parents: {parents}")
+                print(f"    Parent values: {parent_vals if parents else 'None'}")
+                print(f"    Key: {key}")
+                print(f"    Probability from CPT: {node_prob}")
+                print(f"    Cumulative joint probability: {prob}")
         return prob
 
     # Case 1: assume asthma = yes
@@ -129,10 +212,11 @@ def evaluate_predictions(data_rows, dag):
         for node, total_counts in cpts_total.items():
             print(f"  {node}: {total_counts}")
 
-        # Wait for user input to proceed
+        # # Wait for user input to proceed
         input("Press Enter to continue...\n")
 
     return accuracy_over_time, cpts, cpts_total
+
 
 def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.plot(range(1, len(accuracies)+1), accuracies)
@@ -143,6 +227,7 @@ def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.tight_layout()
     plt.savefig(f"{title_prefix}.png")
     plt.show()
+
 
 def write_data_to_file(data, filename):
     with open(filename, 'w') as file:
@@ -160,6 +245,8 @@ def write_data_to_file(data, filename):
             file.write(str(data) + '\n')
     print(f"Data written to {filename}")
 
+
+
 def main():
     header, data_rows = read_data("BN_Asthma_data.csv")
 
@@ -171,6 +258,10 @@ def main():
         write_data_to_file(accuracies, f"dag{i}_accuracy.txt")
         write_data_to_file(cpts, f"dag{i}_cpts.txt")
         write_data_to_file(cpts_total, f"dag{i}_cpts_total.txt")
+
+    
+
+
 
 if __name__ == "__main__":
     main()
