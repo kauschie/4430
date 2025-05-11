@@ -1,0 +1,6 @@
+age
+sex
+asthma, age, sex
+smoke, asthma
+allergy, asthma
+sedentary, smoke

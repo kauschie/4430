@@ -1,0 +1,6 @@
+age
+allergy
+smoke, age
+asthma, smoke, allergy
+urbanization, asthma
+sedentary, asthma

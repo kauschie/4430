@@ -1,0 +1,4 @@
+asthma
+smoke
+sedentary, asthma
+urbanization, sedentary, smoke

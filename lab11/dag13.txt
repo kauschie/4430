@@ -1,0 +1,9 @@
+sex
+age
+urbanization, sex
+geographic_area, urbanization
+education, sex, age
+allergy, education, smoke
+smoke, sex, age, geographic_area
+sedentary, urbanization, education, smoke
+asthma, allergy, smoke, sedentary, education, urbanization
