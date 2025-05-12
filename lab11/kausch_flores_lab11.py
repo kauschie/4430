@@ -2,8 +2,9 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from scipy.optimize import curve_fit
 matplotlib.use('TkAgg')
-DEBUG = True
+DEBUG = False
 
 ######
 # File I/O
@@ -31,72 +32,12 @@ def read_dag(dag_file):
 # Cross-Entropy Method for Logarithmic Curve Fitting
 # ###########
 
-def cem_fit_log_curve(objective_function, 
-                      mean=(1.0, 0.01, 0.5), 
-                      std=1.0, 
-                      n_samples=100, 
-                      elite_frac=0.2, 
-                      max_iters=50, 
-                      epsilon=1e-6, 
-                      track=False):
-    """
-    Cross-Entropy optimization to fit a logarithmic curve of the form:
-        y = a * log(bx + 1) + c
+def logistic(x, k, x0):
+    L = 1.0  # Max value (accuracy cap)
+    return L / (1 + np.exp(-k * (x - x0)))
 
-    Parameters:
-        objective_function (callable): Function that takes (a, b, c) and returns a score (higher is better).
-        mean (tuple of float): Initial mean values for (a, b, c).
-        std (float): Initial standard deviation for each parameter.
-        n_samples (int): Number of parameter samples per iteration.
-        elite_frac (float): Fraction of top-performing samples to keep.
-        max_iters (int): Maximum optimization iterations.
-        epsilon (float): Convergence threshold for std.
-        track (bool): Whether to track history (for debugging/plotting).
-
-    Returns:
-        best_params (tuple): Best (a, b, c) found.
-        tracking_data (dict): History of means/stds (if track=True), else None.
-    """
-    mean = np.array(mean)
-    std = np.full(3, std)
-
-    elite_size = int(n_samples * elite_frac)
-    tracking_data = {
-        "mean": [], "std": [], "samples": [], "scores": [], "elites": []
-    } if track else None
-
-    for _ in range(max_iters):
-        samples = np.random.normal(loc=mean, scale=std, size=(n_samples, 3))
-        scores = np.array([objective_function(a, b, c) for a, b, c in samples])
-        elite_indices = scores.argsort()[-elite_size:]
-        elites = samples[elite_indices]
-
-        mean = np.mean(elites, axis=0)
-        std = np.std(elites, axis=0)
-
-        if track:
-            tracking_data["mean"].append(mean.copy())
-            tracking_data["std"].append(std.copy())
-            tracking_data["samples"].append(samples)
-            tracking_data["scores"].append(scores)
-            tracking_data["elites"].append(elites)
-
-        if np.all(std < epsilon):
-            break
-
-    best_idx = elite_indices[-1]
-    best_params = tuple(samples[best_idx])
-
-    return (best_params, tracking_data) if track else best_params
-
-
-
-# Example: fit to x_vals and y_vals from accuracy plot
-def objective(a, b, c):
-    y_pred = a * np.log(np.array(x_vals) * b + 1) + c
-    return -np.mean((y_pred - y_vals)**2)  # maximize fit = minimize MSE
-
-
+def log_func(x, a, b):
+    return a * np.log(x + 1e-6) + b  # add small value to avoid log(0)
 
 
 ###########
@@ -182,51 +123,62 @@ def compute_auc(accuracies, start=1, end=None):
     return auc
 
 def evaluate_predictions(data_rows, dag):
-    cpts = {}
-    cpts_total = {}
     cpts, cpts_total = initialize_cpts(dag)
     correct = 0
     total = 0
+
+    # Counts for binary classification
+    TP = FP = FN = TN = 0
+
     accuracy_over_time = []
+    precision_over_time = []
+    recall_over_time = []
+    f1_over_time = []
 
     for row in data_rows:
-        # print(f"Row {total + 1}: {row}")
         if total > 0:
             probs = compute_cpt_probabilities(cpts, cpts_total)
-            # Output the current probabilities
-            # print(f"Probabilities after row {total}:")
-            # for node, prob in probs.items():
-            #     print(f"  {node}: {prob}")
-            # Predict asthma
             prediction = predict(row, dag, probs)
-            #print(f"Prediction: {prediction}, Actual: {row['asthma']}")
-            # Check if the prediction is correct
-            if prediction == row['asthma']:
+            actual = row['asthma']
+            
+            if prediction == actual:
                 correct += 1
+
+            # Confusion matrix logic
+            if actual == 'yes':
+                if prediction == 'yes':
+                    TP += 1
+                else:
+                    FN += 1
+            else:  # actual == 'no'
+                if prediction == 'yes':
+                    FP += 1
+                else:
+                    TN += 1
+
+            # Compute metrics with small epsilon to avoid division by zero
+            precision = TP / (TP + FP + 1e-6)
+            recall    = TP / (TP + FN + 1e-6)
+            f1_score  = 2 * precision * recall / (precision + recall + 1e-6)
+        else:
+            # First point, no predictions yet
+            precision = recall = f1_score = 0
+
         total += 1
         accuracy = correct / total if total > 0 else 0
+
+        # Append metrics
         accuracy_over_time.append(accuracy)
+        precision_over_time.append(precision)
+        recall_over_time.append(recall)
+        f1_over_time.append(f1_score)
 
         update_cpt_from_row(row, dag, cpts, cpts_total)
-        # Output the current accuracy
-        # print(f"Current accuracy: {accuracy:.2f}")
-        # output the current CPTs
-        # print("Current CPTs:")
-        # for node, cpt in cpts.items():
-        #     print(f"  {node}: {cpt}")
-        # Output the current total counts
-        # print("Current total counts:")
-        # for node, total_counts in cpts_total.items():
-        #     print(f"  {node}: {total_counts}")
 
-        # Wait for user input to proceed (comment out for automatic execution)
-        # input("Press Enter to continue...\n")
+    # # Compute AUC (same as before)
+    # auc = compute_auc(accuracy_over_time, start=250)
 
-    # Compute AUC
-    auc = compute_auc(accuracy_over_time, start=250)
-    # print(f"AUC: {auc:.2f}")
-
-    return accuracy_over_time, auc, cpts, cpts_total
+    return accuracy_over_time, cpts, cpts_total, precision_over_time, recall_over_time, f1_over_time
 
 
 def plot_accuracy_over_time(accuracies, title_prefix=''):
@@ -287,30 +239,117 @@ def main():
     header, data_rows = read_data("BN_Asthma_data.csv")
 
     all_accuracies = []
+    all_precisions = []
+    all_recalls = []
+    all_f1s = []
     aucs = []
 
     # Loop through DAGs 5 to 13
-    for i in range(5, 14):
+    for i in range(1, 15):
         # Read DAG
         path = f"dag{i}.txt"
         dag = read_dag(path)
 
         # Get accuracies, AUC, CPTs
-        accuracies, auc, cpts, cpts_total = evaluate_predictions(data_rows, dag)
+        accuracies, cpts, cpts_total, precisions, recalls, f1s = evaluate_predictions(data_rows, dag)
+        
+
+        y_accuracies = np.array(accuracies)
+        y_precisions = np.array(precisions)
+        y_recalls = np.array(recalls)
+        y_f1s = np.array(f1s)
+        x_vals = np.arange(1, len(recalls) + 1)
+
+        # Fit the logistic function to the data
+
+        params, _ = curve_fit(log_func, x_vals, y_accuracies, p0=[0.1, 0.5])
+        y_pred = log_func(x_vals, params[0], params[1])
+        auc = compute_auc(y_pred, start=1)
+
+        print(f"Accuracy AUC for DAG {i}: {auc:.2f}")
+
+        # Plot the original data and the fitted curve
+        plt.plot(x_vals, y_accuracies, 'o', label='Original Data')
+        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
+        plt.xlabel('Row Number')
+        plt.ylabel('Accuracy')
+        plt.title(f"Accuracy Fitted Curve for DAG {i}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"fitted_curve_dag_{i}.png")
+        plt.show()
+
+        # plot the original precision data and fitted curve
+        params, _ = curve_fit(log_func, x_vals, y_precisions, p0=[0.1, 0.5])
+        y_pred = log_func(x_vals, params[0], params[1])
+        auc = compute_auc(y_pred, start=1)
+        print(f"Precision AUC for DAG {i}: {auc:.2f}")
+        plt.plot(x_vals, y_precisions, 'o', label='Original Data')
+        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
+        plt.xlabel('Row Number')
+        plt.ylabel('Precision')
+        plt.title(f"Precision Fitted Curve for DAG {i}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"fitted_curve_dag_{i}_precision.png")
+        plt.show()
+
+        # plot the original recall data and fitted curve
+        params, _ = curve_fit(log_func, x_vals, y_recalls, p0=[0.1, 0.5])
+        y_pred = log_func(x_vals, params[0], params[1])
+        auc = compute_auc(y_pred, start=1)
+        print(f"Recall AUC for DAG {i}: {auc:.2f}")
+        plt.plot(x_vals, y_recalls, 'o', label='Original Data')
+        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
+        plt.xlabel('Row Number')
+        plt.ylabel('Recall')
+        plt.title(f"Recall Fitted Curve for DAG {i}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"fitted_curve_dag_{i}_recall.png")
+        plt.show()
+
+        # plot the original f1 data and fitted curve
+        params, _ = curve_fit(log_func, x_vals, y_f1s, p0=[0.1, 0.5])
+        y_pred = log_func(x_vals, params[0], params[1])
+        auc = compute_auc(y_pred, start=1)
+        print(f"F1 AUC for DAG {i}: {auc:.2f}")
+        plt.plot(x_vals, y_f1s, 'o', label='Original Data')
+        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
+        plt.xlabel('Row Number')
+        plt.ylabel('F1')
+        plt.title(f"F1 Fitted Curve for DAG {i}")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"fitted_curve_dag_{i}_f1.png")
+        plt.show()
+        
         all_accuracies.append(accuracies)
+        all_precisions.append(precisions)
+        all_recalls.append(recalls)
+        all_f1s.append(f1s)
         aucs.append(auc)
 
         # Visualize and save results (uncomment to see each individual plot)
         # plot_accuracy_over_time(accuracies, title_prefix=f"DAG{i}")
         write_data_to_file(accuracies, f"dag{i}_accuracy.txt")
+        write_data_to_file(precisions, f"dag{i}_precision.txt")
+        write_data_to_file(recalls, f"dag{i}_recall.txt")
+        write_data_to_file(f1s, f"dag{i}_f1.txt")
         write_data_to_file(cpts, f"dag{i}_cpts.txt")
         write_data_to_file(cpts_total, f"dag{i}_cpts_total.txt")
 
     # Print AUC
-    print(f"AUCs for DAGs: {aucs}")
+    # print(f"AUCs for DAGs: {aucs}")
 
     # Plot all accuracies (start from DAG 5)
-    plot_all_accuracies(all_accuracies, aucs, title_prefix='All DAG', start = 5)
+    plot_all_accuracies(all_accuracies, aucs, title_prefix='All DAG', start = 1)
+    # Plot all precisions
+    plot_all_accuracies(all_precisions, aucs, title_prefix='All DAG Precision', start = 1)
+    # Plot all recalls
+    plot_all_accuracies(all_recalls, aucs, title_prefix='All DAG Recall', start = 1)
+    # Plot all f1s
+    plot_all_accuracies(all_f1s, aucs, title_prefix='All DAG F1', start = 1)
 
 if __name__ == "__main__":
     main()
