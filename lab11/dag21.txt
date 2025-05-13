@@ -1,0 +1,3 @@
+allergy
+smoke
+asthma, smoke, allergy

@@ -1,0 +1,7 @@
+asthma
+sedentary, asthma
+smoke, asthma
+allergy, asthma
+age, asthma
+urbanization, asthma
+geographic_area, asthma

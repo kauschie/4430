@@ -344,11 +344,11 @@ def main():
     # list_of_good = [1,2,3,4,5]
     # list_of_good = [5, 6, 7, 12, 17]
     # list_of_good = [5, 6, 7, 12, 13, 17]
-    list_of_good = [7, 13]
+    list_of_good = [13, 19, 20, 21]
     # list_of_good = [i for i in range(1, 19)]
 
     # Loop through DAGs 5 to 13
-    for i in range(1, 19):
+    for i in range(1, 22):
         # Read DAG
         if i not in list_of_good:
             continue

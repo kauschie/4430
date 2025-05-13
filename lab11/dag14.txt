@@ -1,0 +1,5 @@
+age
+smoke
+allergy
+asthma, age, smoke, allergy
+sedentary, asthma

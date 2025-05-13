@@ -1,0 +1,4 @@
+allergy
+smoke
+asthma, smoke, allergy
+sedentary, asthma
