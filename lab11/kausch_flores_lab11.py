@@ -180,8 +180,33 @@ def evaluate_predictions(data_rows, dag):
 
     return accuracy_over_time, cpts, cpts_total, precision_over_time, recall_over_time, f1_over_time
 
+def sliding_variance_reverse(data, window=5, threshold=1e-4):
+    """
+    Slides a window from the end of the list to the beginning,
+    computing variance for each window. Returns the first index (from end)
+    where the variance exceeds the threshold.
+
+    Args:
+        data (list or np.array): Time series data (e.g., accuracy, recall).
+        window (int): Window size for computing variance.
+        threshold (float): Variance threshold to consider the data as "unstable".
+
+    Returns:
+        int: Suggested cutoff index (start AUC from here forward)
+    """
+    N = len(data)
+    data = np.array(data)
+
+    for i in range(N - window, -1, -1):  # from end to start
+        window_vals = data[i:i + window]
+        var = np.var(window_vals)
+        if var > threshold:
+            return i + window  # start AUC just after stable period ends
+
+    return 0  # if all variance is below threshold, start from beginning
 
 def plot_accuracy_over_time(accuracies, title_prefix=''):
+    plt.figure(figsize=(16, 8))
     plt.plot(range(1, len(accuracies)+1), accuracies)
     plt.xlabel('Row Number')
     plt.ylabel('Accuracy')
@@ -189,7 +214,7 @@ def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.grid(True)
 
     # Add a vertical line at x = 250
-    plt.axvline(x=250, color='red', linestyle='--', label='x = 250')
+    plt.axvline(x=auc_start, color='red', linestyle='--', label=f'x = {auc_start}')
     plt.legend()
     plt.tight_layout()
 
@@ -197,24 +222,59 @@ def plot_accuracy_over_time(accuracies, title_prefix=''):
     plt.savefig(f"{title_prefix}.png")
     plt.show()
 
-def plot_all_accuracies(accuracies_list, auc, title_prefix='', start=1):
+def plot_all_accuracies(accuracies_list, auc, ylabel=None, title_prefix='', start=1, indexes=None):
     # Start refers to which DAG to start plotting from
-    for i, accuracies in enumerate(accuracies_list):
-        plt.plot(range(1, len(accuracies)+1), accuracies, label=f'DAG {i+start}: AUC == {auc[i]:.2f}')
+    if not ylabel:
+        ylabel = 'Accuracy'
+    plt.figure(figsize=(16, 8))
+
+    if indexes is None:
+        for i, accuracies in enumerate(accuracies_list):
+            plt.plot(range(1, len(accuracies)+1), accuracies, label=f'DAG {i+start}: AUC == {auc[i]:.2f}')
+    else:
+        for i, accuracies in enumerate(accuracies_list):
+            plt.plot(range(1, len(accuracies)+1), accuracies, label=f'DAG {indexes[i]}: AUC == {auc[i]:.2f}')
+
 
     # Labels
     plt.xlabel('Row Number')
-    plt.ylabel('Accuracy')
-    plt.title(f"{title_prefix} Accuracy Over Time")
+
+    plt.ylabel(ylabel)
+    plt.title(f"{title_prefix} Over Time")
     plt.grid(True)
     plt.legend()
 
     # Add a vertical line at x = 250, but do not include it in the legend
-    plt.axvline(x=250, color='red', linestyle='--', label=None)
+    plt.axvline(x=auc_start, color='red', linestyle='--', label=None)
     plt.tight_layout()
 
     # Save and show the plot
     plt.savefig(f"{title_prefix}_all_dags.png")
+    plt.show()
+
+def plot_intersection(all_f1s, interect_pt, indexes, title_prefix='F1 Score', ylabel='F1'):
+
+    # Start refers to which DAG to start plotting from
+    plt.figure(figsize=(16, 8))
+
+    for i, value in enumerate(all_f1s):
+        plt.plot(range(1, len(value)+1), value, label=f'DAG {indexes[i]}')
+
+
+    # Labels
+    plt.xlabel('Row Number')
+    plt.ylabel(ylabel)
+    plt.title(f"{title_prefix} Over Time")
+    plt.grid(True)
+    plt.legend()
+
+    # Add a vertical line at x = 250, but do not include it in the legend
+    plt.axvline(x=auc_start, color='red', linestyle='--', label=None)
+    plt.axvline(x=interect_pt, color='purple', linestyle=':', label=None)
+    plt.tight_layout()
+
+    # Save and show the plot
+    plt.savefig(f"{indexes[0]}x{indexes[1]}_{ylabel}.png")
     plt.show()
 
 def write_data_to_file(data, filename):
@@ -233,8 +293,29 @@ def write_data_to_file(data, filename):
             file.write(str(data) + '\n')
     print(f"Data written to {filename}")
 
+def plot_all_metrics_with_overlay(fitted_curves, original_curves, aucs, title_prefix, ylabel, start=1, indexes=None):
+    plt.figure(figsize=(16, 8))
+    for i, (fit, raw) in enumerate(zip(fitted_curves, original_curves)):
+        label = f"DAG {indexes[i] if indexes else i + start}: AUC = {aucs[i]:.2f}"
+        x_vals = np.arange(1, len(fit) + 1)
+
+        plt.plot(x_vals, fit, label=label)  # Fitted curve
+        plt.scatter(x_vals, raw, s=10, alpha=0.4, marker='o', label=None)  # Original points
+
+    plt.xlabel("Row Number")
+    plt.ylabel(ylabel)
+    plt.title(f"{title_prefix} Over Time (Fitted + Raw)")
+    plt.axvline(x=138, color='red', linestyle='--', label='auc_start')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"{title_prefix.lower().replace(' ', '_')}_with_raw.png")
+    plt.show()
 
 
+
+auc_start = 138
+# auc_start = 189
 def main():
     header, data_rows = read_data("BN_Asthma_data.csv")
 
@@ -242,11 +323,36 @@ def main():
     all_precisions = []
     all_recalls = []
     all_f1s = []
-    aucs = []
+
+    accuracies_raw = []
+    precisions_raw = []
+    recalls_raw = []
+    f1s_raw = []
+
+
+    acc_aucs = []
+    prec_aucs = []
+    rec_aucs = []
+    f1_aucs = []
+
+    acc_var_indexes = []
+    prec_var_indexes = []
+    rec_var_indexes = []
+    f1_var_indexes = []
+
+    # list_of_good = [1]
+    # list_of_good = [1,2,3,4,5]
+    # list_of_good = [5, 6, 7, 12, 17]
+    # list_of_good = [5, 6, 7, 12, 13, 17]
+    list_of_good = [7, 13]
+    # list_of_good = [i for i in range(1, 19)]
 
     # Loop through DAGs 5 to 13
-    for i in range(1, 15):
+    for i in range(1, 19):
         # Read DAG
+        if i not in list_of_good:
+            continue
+
         path = f"dag{i}.txt"
         dag = read_dag(path)
 
@@ -262,73 +368,138 @@ def main():
 
         # Fit the logistic function to the data
 
-        params, _ = curve_fit(log_func, x_vals, y_accuracies, p0=[0.1, 0.5])
-        y_pred = log_func(x_vals, params[0], params[1])
-        auc = compute_auc(y_pred, start=1)
+        acc_var_indexes.append(sliding_variance_reverse(y_accuracies, window=5, threshold=1e-4))
+        prec_var_indexes.append(sliding_variance_reverse(y_precisions, window=5, threshold=1e-4))
+        rec_var_indexes.append(sliding_variance_reverse(y_recalls, window=5, threshold=1e-4))
+        f1_var_indexes.append(sliding_variance_reverse(y_f1s, window=5, threshold=1e-4))
+        # print(f"Cutoff index for DAG {i}: {cutoff_index}")
 
-        print(f"Accuracy AUC for DAG {i}: {auc:.2f}")
+
+        # params, _ = curve_fit(log_func, x_vals, y_accuracies, p0=[0.1, 0.5])
+        # y_pred_acc = log_func(x_vals, params[0], params[1])
+        # acc_auc = compute_auc(y_pred_acc, start=auc_start)
+
+        # Accuracy fit (fit and evaluate only on stable region)
+        x_acc_stable = x_vals[auc_start:]
+        y_acc_stable = y_accuracies[auc_start:]
+        params, _ = curve_fit(log_func, x_acc_stable, y_acc_stable, p0=[0.1, 0.5])
+        y_pred_acc_full = log_func(x_vals, *params)  # for plotting
+        y_pred_acc_stable = log_func(x_acc_stable, *params)  # for AUC
+        acc_auc = compute_auc(y_pred_acc_stable, start=0)
+
+        print(f"Accuracy AUC for DAG {i}: {acc_auc:.2f}")
 
         # Plot the original data and the fitted curve
-        plt.plot(x_vals, y_accuracies, 'o', label='Original Data')
-        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
-        plt.xlabel('Row Number')
-        plt.ylabel('Accuracy')
-        plt.title(f"Accuracy Fitted Curve for DAG {i}")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"fitted_curve_dag_{i}.png")
-        plt.show()
+        # plt.plot(x_vals, y_accuracies, 'o', label='Original Data')
+        # plt.plot(x_vals, y_pred_acc, 'r-', label='Fitted Curve')
+        # plt.xlabel('Row Number')
+        # plt.ylabel('Accuracy')
+        # plt.title(f"Accuracy Fitted Curve for DAG {i}")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.savefig(f"fitted_curve_dag_{i}.png")
+        # plt.show()
 
         # plot the original precision data and fitted curve
-        params, _ = curve_fit(log_func, x_vals, y_precisions, p0=[0.1, 0.5])
-        y_pred = log_func(x_vals, params[0], params[1])
-        auc = compute_auc(y_pred, start=1)
-        print(f"Precision AUC for DAG {i}: {auc:.2f}")
-        plt.plot(x_vals, y_precisions, 'o', label='Original Data')
-        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
-        plt.xlabel('Row Number')
-        plt.ylabel('Precision')
-        plt.title(f"Precision Fitted Curve for DAG {i}")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"fitted_curve_dag_{i}_precision.png")
-        plt.show()
+        # params, _ = curve_fit(log_func, x_vals, y_precisions, p0=[0.1, 0.5])
+        # y_pred_prec = log_func(x_vals, params[0], params[1])
+        # prec_auc = compute_auc(y_pred_prec, start=auc_start)
+        # print(f"Precision AUC for DAG {i}: {prec_auc:.2f}")
+
+        x_prec_stable = x_vals[auc_start:]
+        y_prec_stable = y_precisions[auc_start:]
+        params, _ = curve_fit(log_func, x_prec_stable, y_prec_stable, p0=[0.1, 0.5])
+        y_pred_prec_full = log_func(x_vals, *params)
+        y_pred_prec_stable = log_func(x_prec_stable, *params)
+        prec_auc = compute_auc(y_pred_prec_stable, start=0)
+        print(f"Precision AUC for DAG {i}: {prec_auc:.2f}")
+
+
+
+        # plt.plot(x_vals, y_precisions, 'o', label='Original Data')
+        # plt.plot(x_vals, y_pred_prec, 'r-', label='Fitted Curve')
+        # plt.xlabel('Row Number')
+        # plt.ylabel('Precision')
+        # plt.title(f"Precision Fitted Curve for DAG {i}")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.savefig(f"fitted_curve_dag_{i}_precision.png")
+        # plt.show()
 
         # plot the original recall data and fitted curve
-        params, _ = curve_fit(log_func, x_vals, y_recalls, p0=[0.1, 0.5])
-        y_pred = log_func(x_vals, params[0], params[1])
-        auc = compute_auc(y_pred, start=1)
-        print(f"Recall AUC for DAG {i}: {auc:.2f}")
-        plt.plot(x_vals, y_recalls, 'o', label='Original Data')
-        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
-        plt.xlabel('Row Number')
-        plt.ylabel('Recall')
-        plt.title(f"Recall Fitted Curve for DAG {i}")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"fitted_curve_dag_{i}_recall.png")
-        plt.show()
+
+
+        # params, _ = curve_fit(log_func, x_vals, y_recalls, p0=[0.1, 0.5])
+        # y_pred_recall = log_func(x_vals, params[0], params[1])
+        # rec_auc = compute_auc(y_pred_recall, start=auc_start)
+        # print(f"Recall AUC for DAG {i}: {rec_auc:.2f}")
+
+        x_rec_stable = x_vals[auc_start:]
+        y_rec_stable = y_recalls[auc_start:]
+        params, _ = curve_fit(log_func, x_rec_stable, y_rec_stable, p0=[0.1, 0.5])
+        y_pred_recall_full = log_func(x_vals, *params)
+        y_pred_recall_stable = log_func(x_rec_stable, *params)
+        rec_auc = compute_auc(y_pred_recall_stable, start=0)
+        print(f"Recall AUC for DAG {i}: {rec_auc:.2f}")
+
+
+        # plt.plot(x_vals, y_recalls, 'o', label='Original Data')
+        # plt.plot(x_vals, y_pred_recall, 'r-', label='Fitted Curve')
+        # plt.xlabel('Row Number')
+        # plt.ylabel('Recall')
+        # plt.title(f"Recall Fitted Curve for DAG {i}")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.savefig(f"fitted_curve_dag_{i}_recall.png")
+        # plt.show()
 
         # plot the original f1 data and fitted curve
-        params, _ = curve_fit(log_func, x_vals, y_f1s, p0=[0.1, 0.5])
-        y_pred = log_func(x_vals, params[0], params[1])
-        auc = compute_auc(y_pred, start=1)
-        print(f"F1 AUC for DAG {i}: {auc:.2f}")
-        plt.plot(x_vals, y_f1s, 'o', label='Original Data')
-        plt.plot(x_vals, y_pred, 'r-', label='Fitted Curve')
-        plt.xlabel('Row Number')
-        plt.ylabel('F1')
-        plt.title(f"F1 Fitted Curve for DAG {i}")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"fitted_curve_dag_{i}_f1.png")
-        plt.show()
+        # params, _ = curve_fit(log_func, x_vals, y_f1s, p0=[0.1, 0.5])
+        # y_pred_f1 = log_func(x_vals, params[0], params[1])
+        # f1_auc = compute_auc(y_pred_f1, start=auc_start)
+        # print(f"F1 AUC for DAG {i}: {f1_auc:.2f}")
+
+        x_f1_stable = x_vals[auc_start:]
+        y_f1_stable = y_f1s[auc_start:]
+        params, _ = curve_fit(log_func, x_f1_stable, y_f1_stable, p0=[0.1, 0.5])
+        y_pred_f1_full = log_func(x_vals, *params)
+        y_pred_f1_stable = log_func(x_f1_stable, *params)
+        f1_auc = compute_auc(y_pred_f1_stable, start=0)
+        print(f"F1 AUC for DAG {i}: {f1_auc:.2f}")
+
         
-        all_accuracies.append(accuracies)
-        all_precisions.append(precisions)
-        all_recalls.append(recalls)
-        all_f1s.append(f1s)
-        aucs.append(auc)
+
+        # plt.plot(x_vals, y_f1s, 'o', label='Original Data')
+        # plt.plot(x_vals, y_pred_f1, 'r-', label='Fitted Curve')
+        # plt.xlabel('Row Number')
+        # plt.ylabel('F1')
+        # plt.title(f"F1 Fitted Curve for DAG {i}")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.savefig(f"fitted_curve_dag_{i}_f1.png")
+        # plt.show()
+        
+        # all_accuracies.append(y_pred_acc)
+        # all_precisions.append(y_pred_prec)
+        # all_recalls.append(y_pred_recall)
+        # all_f1s.append(y_pred_f1)
+
+        all_accuracies.append(y_pred_acc_full)
+        all_precisions.append(y_pred_prec_full)
+        all_recalls.append(y_pred_recall_full)
+        all_f1s.append(y_pred_f1_full)
+
+        accuracies_raw.append(y_accuracies)
+        precisions_raw.append(y_precisions)
+        recalls_raw.append(y_recalls)
+        f1s_raw.append(y_f1s)
+
+
+
+        acc_aucs.append(acc_auc)
+        prec_aucs.append(prec_auc)
+        rec_aucs.append(rec_auc)
+        f1_aucs.append(f1_auc)
 
         # Visualize and save results (uncomment to see each individual plot)
         # plot_accuracy_over_time(accuracies, title_prefix=f"DAG{i}")
@@ -340,16 +511,52 @@ def main():
         write_data_to_file(cpts_total, f"dag{i}_cpts_total.txt")
 
     # Print AUC
-    # print(f"AUCs for DAGs: {aucs}")
+    # print(f"AUCs for DAGs: {acc_aucs}")
+    max_index = 0
+
+    for i in range(len(acc_var_indexes)):
+        if acc_var_indexes[i] > max_index:
+            max_index = acc_var_indexes[i]
+        if prec_var_indexes[i] > max_index:
+            max_index = prec_var_indexes[i]
+        if rec_var_indexes[i] > max_index:
+            max_index = rec_var_indexes[i]
+        if f1_var_indexes[i] > max_index:
+            max_index = f1_var_indexes[i]
+
+    print(f"Max index for all DAGs: {max_index}")
 
     # Plot all accuracies (start from DAG 5)
-    plot_all_accuracies(all_accuracies, aucs, title_prefix='All DAG', start = 1)
+    plot_all_accuracies(all_accuracies, acc_aucs, title_prefix='All DAG Accuracy', start = 1, indexes = list_of_good, ylabel='Accuracy')
     # Plot all precisions
-    plot_all_accuracies(all_precisions, aucs, title_prefix='All DAG Precision', start = 1)
+    plot_all_accuracies(all_precisions, prec_aucs, title_prefix='All DAG Precision', start = 1, indexes = list_of_good, ylabel='Precision')
     # Plot all recalls
-    plot_all_accuracies(all_recalls, aucs, title_prefix='All DAG Recall', start = 1)
+    plot_all_accuracies(all_recalls, rec_aucs, title_prefix='All DAG Recall', start = 1, indexes = list_of_good, ylabel='Recall')
     # Plot all f1s
-    plot_all_accuracies(all_f1s, aucs, title_prefix='All DAG F1', start = 1)
+    plot_all_accuracies(all_f1s, f1_aucs, title_prefix='All DAG F1', start = 1, indexes = list_of_good, ylabel='F1')
+
+    # Plot all accuracies with overlay
+    plot_all_metrics_with_overlay(all_accuracies, [np.array(a) for a in accuracies_raw], acc_aucs, title_prefix='Accuracy', ylabel='Accuracy', indexes=list_of_good)
+    plot_all_metrics_with_overlay(all_precisions, [np.array(p) for p in precisions_raw], prec_aucs, title_prefix='Precision', ylabel='Precision', indexes=list_of_good)
+    plot_all_metrics_with_overlay(all_recalls, [np.array(r) for r in recalls_raw], rec_aucs, title_prefix='Recall', ylabel='Recall', indexes=list_of_good)
+    plot_all_metrics_with_overlay(all_f1s, [np.array(f) for f in f1s_raw], f1_aucs, title_prefix='F1 Score', ylabel='F1', indexes=list_of_good)
+    
+    if len(list_of_good) == 2:
+        interect_pt = -1
+        for i in range(len(all_f1s[0])):
+            if all_f1s[0][i] > all_f1s[1][i]:
+                interect_pt = i
+                break
+
+        print(f"Intersection point for DAG {list_of_good[0]} and {list_of_good[1]}: {interect_pt}")
+        plot_intersection(all_f1s, interect_pt, indexes=list_of_good, title_prefix='F1 Score', ylabel='F1', )
+
+    for i in range(len(list_of_good)):
+        print(f"\nDAG {list_of_good[i]}:")
+        print(f"\tFinal Accuracy: {sum(all_accuracies[i][-5:-1])/5}")
+        print(f"\tFinal Precision: {sum(all_precisions[i][-5:-1])/5}")
+        print(f"\tFinal Recall: {sum(all_recalls[i][-5:-1])/5}")
+        print(f"\tFinal F1: {sum(all_f1s[i][-5:-1]) / 5}")
 
 if __name__ == "__main__":
     main()
